@@ -1,0 +1,303 @@
+{
+  "project": "BoardSource Dashboard",
+  "branchName": "ralph/nextjs-dashboard",
+  "description": "NextJS Dashboard Application - SaaS-style dashboard with Sanity CMS integration, Tailwind CSS styling, and responsive layout",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Initialize NextJS project with TypeScript and Tailwind",
+      "description": "As a developer, I need a properly configured NextJS project so I can build features on a solid foundation.",
+      "acceptanceCriteria": [
+        "NextJS 14+ initialized with App Router using create-next-app",
+        "TypeScript configured with strict mode in tsconfig.json",
+        "Tailwind CSS installed and configured with tailwind.config.ts",
+        "Project runs successfully with npm run dev",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "NextJS 16.1.6 with Tailwind v4 (CSS-based config instead of tailwind.config.ts)"
+    },
+    {
+      "id": "US-002",
+      "title": "Configure ESLint and Prettier",
+      "description": "As a developer, I need consistent code formatting and linting rules.",
+      "acceptanceCriteria": [
+        "ESLint configured with NextJS recommended rules",
+        "Prettier installed and configured with .prettierrc",
+        "ESLint and Prettier configs do not conflict",
+        "npm run lint passes without errors",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Using eslint-config-prettier and eslint-plugin-prettier for ESLint 9 flat config integration"
+    },
+    {
+      "id": "US-003",
+      "title": "Create project folder structure",
+      "description": "As a developer, I need an organized folder structure so the codebase remains maintainable.",
+      "acceptanceCriteria": [
+        "Create /components directory with /ui and /dashboard subdirectories",
+        "Create /lib directory with /cms subdirectory",
+        "Create /types directory for TypeScript definitions",
+        "Add placeholder index.ts files to establish structure",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Placeholder index.ts files without exports to avoid TypeScript module errors"
+    },
+    {
+      "id": "US-004",
+      "title": "Implement root layout with global styles",
+      "description": "As a user, I want a consistent layout across all pages with proper styling.",
+      "acceptanceCriteria": [
+        "Root layout in app/layout.tsx with metadata configuration",
+        "Inter font loaded from next/font/google",
+        "Global Tailwind styles applied in globals.css",
+        "Responsive meta viewport configured",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Using NextJS Viewport export for meta viewport, Inter font via next/font/google"
+    },
+    {
+      "id": "US-005",
+      "title": "Build Button component",
+      "description": "As a developer, I need a reusable Button component with multiple variants.",
+      "acceptanceCriteria": [
+        "Button component in /components/ui/button.tsx",
+        "Supports variants: primary, secondary, outline, ghost",
+        "Accepts className prop for customization",
+        "Uses Tailwind for all styling",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Button component with primary, secondary, outline, ghost variants using forwardRef"
+    },
+    {
+      "id": "US-006",
+      "title": "Build Card component",
+      "description": "As a developer, I need a reusable Card component with header, content, and footer slots.",
+      "acceptanceCriteria": [
+        "Card component in /components/ui/card.tsx",
+        "Supports CardHeader, CardContent, CardFooter subcomponents",
+        "Accepts className prop for customization",
+        "Uses Tailwind for all styling",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Card, CardHeader, CardContent, CardFooter subcomponents with forwardRef and className support"
+    },
+    {
+      "id": "US-007",
+      "title": "Build Badge and Input components",
+      "description": "As a developer, I need Badge and Input UI primitives.",
+      "acceptanceCriteria": [
+        "Badge component in /components/ui/badge.tsx with color variants",
+        "Input component in /components/ui/input.tsx with label and error states",
+        "Both accept className prop for customization",
+        "Uses Tailwind for all styling",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Badge with default/success/warning/error/info variants, Input with label and error states using forwardRef"
+    },
+    {
+      "id": "US-008",
+      "title": "Create sidebar navigation component",
+      "description": "As a user, I want a sidebar navigation so I can access different dashboard sections.",
+      "acceptanceCriteria": [
+        "Sidebar component in /components/dashboard/sidebar.tsx",
+        "Fixed width 256px on desktop",
+        "Displays navigation items with icons",
+        "Active nav item visually highlighted",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Sidebar with w-64 (256px), nav items with SVG icons, active state using usePathname hook"
+    },
+    {
+      "id": "US-009",
+      "title": "Create header component with mobile menu",
+      "description": "As a user, I want a header bar and mobile navigation drawer.",
+      "acceptanceCriteria": [
+        "Header component in /components/dashboard/header.tsx",
+        "Mobile menu button visible on small screens",
+        "Sidebar becomes drawer overlay on mobile (collapsible)",
+        "Breadcrumbs placeholder area in header",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Header with mobile menu toggle, Sidebar drawer overlay on mobile, dynamic breadcrumbs from pathname"
+    },
+    {
+      "id": "US-010",
+      "title": "Create dashboard layout",
+      "description": "As a user, I want a dashboard layout that combines sidebar, header, and content area.",
+      "acceptanceCriteria": [
+        "Dashboard layout in app/dashboard/layout.tsx",
+        "Integrates Sidebar and Header components",
+        "Main content area with proper padding",
+        "Responsive layout works on mobile, tablet, desktop",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "Dashboard layout with Sidebar hidden on mobile (lg:flex), Header with mobile menu, main content area with p-4 lg:p-6 padding"
+    },
+    {
+      "id": "US-011",
+      "title": "Set up Sanity CMS project",
+      "description": "As a developer, I need Sanity CMS initialized for content management.",
+      "acceptanceCriteria": [
+        "Sanity v3 installed as dependency",
+        "Sanity config file created at sanity.config.ts",
+        "Environment variables documented in .env.local.example",
+        "NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET vars defined",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "Sanity v3 installed with next-sanity and @sanity/vision, config at sanity.config.ts, env vars documented in .env.local.example"
+    },
+    {
+      "id": "US-012",
+      "title": "Create Sanity client and query helpers",
+      "description": "As a developer, I need a type-safe Sanity client for fetching content.",
+      "acceptanceCriteria": [
+        "Sanity client created in /lib/cms/client.ts",
+        "Type-safe query helper function that accepts GROQ queries",
+        "Client uses environment variables for configuration",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "Sanity client with sanityFetch<T> generic helper using next-sanity createClient, env vars for projectId, dataset, apiVersion"
+    },
+    {
+      "id": "US-013",
+      "title": "Create CMS schemas for page and announcement",
+      "description": "As a content editor, I need schemas to manage pages and announcements.",
+      "acceptanceCriteria": [
+        "Schema for 'page' content type with title, slug, content fields",
+        "Schema for 'announcement' with title, message, type, active fields",
+        "Schemas registered in Sanity config",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": "Page schema with title, slug, content (block array). Announcement with title, message, type (info/warning/error), active boolean. Schemas in lib/cms/schemas/ and registered in sanity.config.ts"
+    },
+    {
+      "id": "US-014",
+      "title": "Create CMS schema for navigation and add Studio route",
+      "description": "As a content editor, I need navigation schema and access to Sanity Studio.",
+      "acceptanceCriteria": [
+        "Schema for 'navigationItem' with label, href, icon, order fields",
+        "Schema registered in Sanity config",
+        "Sanity Studio accessible at /studio route",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 14,
+      "passes": true,
+      "notes": "navigationItem schema with label, href, icon (dropdown options), order fields. Studio route at /studio using next-sanity/studio NextStudio component with custom layout."
+    },
+    {
+      "id": "US-015",
+      "title": "Create loading skeleton components",
+      "description": "As a user, I want to see loading skeletons while content loads.",
+      "acceptanceCriteria": [
+        "Skeleton component in /components/ui/skeleton.tsx",
+        "CardSkeleton component for loading card states",
+        "ContentSkeleton component for loading text content",
+        "Uses Tailwind animate-pulse for loading effect",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": "Skeleton, CardSkeleton, ContentSkeleton components with animate-pulse effect. CardSkeleton has header/content layout, ContentSkeleton has configurable lines prop."
+    },
+    {
+      "id": "US-016",
+      "title": "Create error boundary and error pages",
+      "description": "As a user, I want clear feedback when errors occur.",
+      "acceptanceCriteria": [
+        "Error boundary component with retry option",
+        "404 page at app/not-found.tsx with navigation back to dashboard",
+        "Global error page at app/error.tsx",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": "ErrorBoundary class component in components/ui/error-boundary.tsx with retry option. 404 page at app/not-found.tsx with dashboard navigation. Global error page at app/error.tsx with reset() and dashboard link."
+    },
+    {
+      "id": "US-017",
+      "title": "Implement dynamic page rendering from CMS",
+      "description": "As a user, I want to see content from the CMS rendered on pages.",
+      "acceptanceCriteria": [
+        "Dynamic route at app/dashboard/[slug]/page.tsx",
+        "Fetches page content by slug from Sanity",
+        "Renders page title and content",
+        "Returns 404 for missing pages using notFound()",
+        "Shows loading state while fetching",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 17,
+      "passes": true,
+      "notes": "Dynamic route using [slug] param, sanityFetch with GROQ query, PortableText for block content, loading.tsx with ContentSkeleton"
+    },
+    {
+      "id": "US-018",
+      "title": "Create dashboard home page",
+      "description": "As a user, I want a dashboard home page showing an overview.",
+      "acceptanceCriteria": [
+        "Dashboard home at app/dashboard/page.tsx",
+        "Welcome section with heading",
+        "Grid of stat cards using Card component (placeholder data)",
+        "Recent activity section (placeholder)",
+        "Responsive grid layout",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 18,
+      "passes": true,
+      "notes": "Dashboard home with welcome section, 4-column responsive stats grid (Total Users, Active Projects, Revenue, Pending Tasks), Recent Activity list with placeholder data"
+    },
+    {
+      "id": "US-019",
+      "title": "Add announcements banner to dashboard",
+      "description": "As a user, I want to see active announcements from the CMS.",
+      "acceptanceCriteria": [
+        "Announcement banner component in /components/dashboard/announcement-banner.tsx",
+        "Fetches active announcements from Sanity",
+        "Displays banner at top of dashboard if announcements exist",
+        "Supports different announcement types (info, warning, error)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 19,
+      "passes": true,
+      "notes": "AnnouncementBanner async server component fetches active announcements with GROQ query, supports info/warning/error types with color-coded styling and icons, integrated into dashboard layout below header"
+    }
+  ]
+}
