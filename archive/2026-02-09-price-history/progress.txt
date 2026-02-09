@@ -1,0 +1,6 @@
+# Ralph Progress Log - Price History
+
+## Codebase Patterns
+
+---
+

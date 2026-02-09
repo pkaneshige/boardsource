@@ -1,4 +1,4 @@
-# Ralph Progress Log - Price History
+# Ralph Progress Log - Price Alerts
 
 ## Codebase Patterns
 

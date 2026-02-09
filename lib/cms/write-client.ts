@@ -2,6 +2,7 @@ import type { ScrapedProduct } from "@/lib/scraper";
 import type { SurfboardCategory, StockStatus, SurfboardSource } from "@/types";
 import { sanityWriteClient } from "./sanity-write-client";
 import { recordPriceSnapshot } from "./price-history";
+import { checkAlerts } from "./alerts";
 
 /**
  * Re-export the shared write client for backwards compatibility.
@@ -194,9 +195,13 @@ export async function upsertSurfboard(
   imageAssets?: Array<{ _type: "reference"; _ref: string }>
 ): Promise<UpsertResult> {
   try {
-    // Check if document exists with this sourceId
-    const existingDoc = await writeClient.fetch<{ _id: string } | null>(
-      `*[_type == "surfboard" && sourceId == $sourceId][0]{ _id }`,
+    // Check if document exists with this sourceId (fetch old price/stock for alert checking)
+    const existingDoc = await writeClient.fetch<{
+      _id: string;
+      price?: number;
+      stockStatus?: string;
+    } | null>(
+      `*[_type == "surfboard" && sourceId == $sourceId][0]{ _id, price, stockStatus }`,
       { sourceId: product.sourceId }
     );
 
@@ -237,10 +242,15 @@ export async function upsertSurfboard(
     }
 
     if (existingDoc) {
+      const oldPrice = existingDoc.price;
+      const oldStockStatus = existingDoc.stockStatus;
+
       // Update existing document
       await writeClient.patch(existingDoc._id).set(documentData).commit();
       // Record price snapshot (resilient — won't throw)
       await recordPriceSnapshot(existingDoc._id, product.price, product.stockStatus, product.source);
+      // Check alerts (resilient — won't throw)
+      await checkAlerts(existingDoc._id, product.price, product.stockStatus, oldPrice, oldStockStatus);
       return {
         success: true,
         documentId: existingDoc._id,

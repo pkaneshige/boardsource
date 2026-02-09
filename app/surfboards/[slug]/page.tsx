@@ -5,6 +5,7 @@ import { sanityFetch, urlFor } from "@/lib/cms";
 import { getPriceHistory } from "@/lib/cms/price-history";
 import { Badge } from "@/components/ui/badge";
 import { PriceHistoryChart } from "./price-history-chart";
+import { PriceAlertForm } from "./price-alert-form";
 import type { Surfboard } from "@/types";
 
 const SURFBOARD_BY_SLUG_QUERY = `*[_type == "surfboard" && slug.current == $slug][0] {
@@ -403,6 +404,12 @@ export default async function SurfboardDetailPage({
               </svg>
             </a>
           )}
+
+          <PriceAlertForm
+            surfboardId={surfboard._id}
+            currentPrice={surfboard.price ?? 0}
+            stockStatus={surfboard.stockStatus || "unknown"}
+          />
 
           {surfboard.relatedListings && surfboard.relatedListings.length > 0 && (
             <PriceComparison surfboard={surfboard} />

@@ -1,0 +1,111 @@
+{
+  "project": "BoardSource Surfboard Catalog",
+  "branchName": "ralph/price-history",
+  "description": "Track surfboard price changes over time by recording price snapshots during sync and displaying an interactive line chart with time range selector and summary stats on the product detail page.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create priceSnapshot Sanity schema",
+      "description": "As a developer, I need a Sanity document type to store individual price snapshots so that price history data persists in the CMS.",
+      "acceptanceCriteria": [
+        "Create lib/cms/schemas/price-snapshot.ts with a priceSnapshot document type using defineType/defineField",
+        "Fields: surfboard (reference to surfboard, required), price (number, required), stockStatus (string), source (string), recordedAt (datetime, required)",
+        "Add schema to lib/cms/schemas/index.ts exports and schemaTypes array",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Record price snapshots during sync",
+      "description": "As a developer, I want the sync process to automatically record a price snapshot when a product's price changes so that history builds up passively with each scrape.",
+      "acceptanceCriteria": [
+        "Create lib/cms/price-history.ts with recordPriceSnapshot(surfboardId: string, price: number, stockStatus: string, source: string) function",
+        "Function fetches the most recent priceSnapshot for that surfboard using GROQ: *[_type == 'priceSnapshot' && surfboard._ref == $id] | order(recordedAt desc)[0]",
+        "Only creates a new snapshot if price or stockStatus differs from the latest snapshot (or no snapshot exists)",
+        "Creates a priceSnapshot document with recordedAt set to new Date().toISOString()",
+        "Function is resilient: wraps in try/catch so failures don't break the sync process (logs error and returns)",
+        "Integrate into upsertSurfboard() in lib/cms/write-client.ts: after successful create or update, call recordPriceSnapshot with the document ID, product price, stockStatus, and source",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Create price history query utility",
+      "description": "As a developer, I need a function to fetch price history for a surfboard so the detail page can display it.",
+      "acceptanceCriteria": [
+        "Add getPriceHistory(surfboardId: string, days?: number) export to lib/cms/price-history.ts",
+        "Returns array of { price: number, stockStatus: string, recordedAt: string } sorted by recordedAt ascending",
+        "When days is provided, filter to snapshots where recordedAt >= now minus N days",
+        "When days is omitted, return all snapshots for that surfboard",
+        "Uses sanityFetch with parameterized GROQ query",
+        "Export the return type as PriceSnapshot for use by UI components",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Install recharts and build PriceHistoryChart client component",
+      "description": "As a user, I want to see a line chart showing how a surfboard's price has changed over time so I can decide if now is a good time to buy.",
+      "acceptanceCriteria": [
+        "Install recharts: npm install recharts",
+        "Create app/surfboards/[slug]/price-history-chart.tsx as a 'use client' component",
+        "Props: snapshots (array of PriceSnapshot from price-history.ts), currentPrice (number)",
+        "Render a recharts LineChart with Line, XAxis, YAxis, Tooltip, ResponsiveContainer",
+        "X-axis shows dates formatted as MMM D (e.g., Jan 15), Y-axis shows price in USD with $ prefix",
+        "Tooltip shows exact price formatted as currency and full date on hover",
+        "Chart has min-height of 200px and is responsive via ResponsiveContainer",
+        "Shows 'No price history available' message when snapshots array is empty or has fewer than 2 entries",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Add time range selector and summary stats to chart",
+      "description": "As a user, I want to toggle between 30d/90d/All views and see key price statistics so I can quickly assess the deal.",
+      "acceptanceCriteria": [
+        "Add toggle buttons (30d / 90d / All) above the chart in price-history-chart.tsx",
+        "Selected range has blue background, unselected have gray/outline style (pill-shaped segmented control)",
+        "Default to 90d view, filter snapshots client-side based on selected range",
+        "Display stats grid below the chart: All-Time Low, All-Time High, Average Price, % Change over selected period",
+        "All-Time Low highlighted in green (using Badge variant='success') if it equals the current price",
+        "Stats update when time range changes",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Integrate price history into product detail page",
+      "description": "As a user, I want to see the price history chart on the surfboard detail page so I don't have to navigate elsewhere.",
+      "acceptanceCriteria": [
+        "Import getPriceHistory from lib/cms/price-history and PriceHistoryChart component in app/surfboards/[slug]/page.tsx",
+        "Fetch all-time price history server-side using getPriceHistory(surfboard._id) (no days param, fetch all)",
+        "Add Price History section between the description and the buy button",
+        "Section has h2 heading 'Price History'",
+        "Only render the section when there are 2 or more price snapshots",
+        "Pass snapshots and surfboard.price as props to PriceHistoryChart",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
