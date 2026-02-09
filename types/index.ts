@@ -40,7 +40,7 @@ export type SurfboardCategory =
 
 export type StockStatus = "in_stock" | "out_of_stock" | "unknown";
 
-export type SurfboardSource = "hawaiian-south-shore" | "surfgarage";
+export type SurfboardSource = "hawaiian-south-shore" | "surfgarage" | "surfboard-factory";
 
 export interface SurfboardReference {
   _type: "reference";

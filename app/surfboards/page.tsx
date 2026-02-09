@@ -211,6 +211,7 @@ const CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
 const SOURCE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "all", label: "All Sources" },
   { value: "hawaiian-south-shore", label: "Hawaiian South Shore" },
+  { value: "surfboard-factory", label: "Surfboard Factory Hawaii" },
   { value: "surfgarage", label: "Surf Garage" },
 ];
 

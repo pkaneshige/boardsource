@@ -79,6 +79,54 @@ export type {
 export { syncSurfgarageProducts } from "./surfgarage/sync";
 export type { SurfgarageSyncOptions } from "./surfgarage/sync";
 
+// Surfboard Factory configuration
+export {
+  SURFBOARD_FACTORY_BASE_URL,
+  SURFBOARD_FACTORY_API_URL,
+  SURFBOARD_FACTORY_SOURCE,
+  SURFBOARD_FACTORY_SOURCE_NAME,
+  SURFBOARD_FACTORY_CATEGORY_IDS,
+  SURFBOARD_FACTORY_CATEGORIES,
+  CATEGORY_MAPPING as SURFBOARD_FACTORY_CATEGORY_MAPPING,
+  surfboardFactoryRateLimit,
+  surfboardFactoryPagination,
+  SURFBOARD_FACTORY_TIMEOUT_MS,
+  surfboardFactoryHeaders,
+  surfboardFactoryUrls,
+  mapCategory as mapSurfboardFactoryCategory,
+  parseWooCommercePrice,
+  generateSourceId as generateSurfboardFactorySourceId,
+  getSurfboardFactoryRandomDelay,
+} from "./surfboard-factory/config";
+export type { SurfboardFactoryCategory } from "./surfboard-factory/config";
+
+// Surfboard Factory types
+export type {
+  WooCommerceProduct,
+  WooCommerceImage,
+  WooCommerceCategory,
+  WooCommerceBrand,
+  WooCommercePrices,
+  WooCommerceAttribute,
+  WooCommerceProductsResponse,
+  WooCommerceCategoryInfo,
+} from "./surfboard-factory/types";
+
+// Surfboard Factory list scraper
+export { scrapeSurfboardFactoryList } from "./surfboard-factory/list-scraper";
+export type { SurfboardFactoryListScraperOptions } from "./surfboard-factory/list-scraper";
+
+// Surfboard Factory detail scraper
+export {
+  scrapeSurfboardFactoryDetail,
+  scrapeSurfboardFactoryDetails,
+} from "./surfboard-factory/detail-scraper";
+export type { SurfboardFactoryDetailScraperOptions } from "./surfboard-factory/detail-scraper";
+
+// Surfboard Factory sync orchestrator
+export { syncSurfboardFactoryProducts } from "./surfboard-factory/sync";
+export type { SurfboardFactorySyncOptions } from "./surfboard-factory/sync";
+
 // Duplicate detection
 export {
   findDuplicates,
