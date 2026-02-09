@@ -1,10 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { sanityFetch, urlFor } from "@/lib/cms";
+import { getBestPriceInfo } from "@/lib/utils/best-price";
+import { Badge } from "@/components/ui/badge";
 import type { Surfboard, SurfboardCategory } from "@/types";
 import { FilterControls } from "./filter-controls";
 import { SearchInput } from "./search-input";
 import { SortSelect, type SortOption } from "./sort-select";
+
+interface RelatedListingItem {
+  _id: string;
+  price?: number;
+  stockStatus?: string;
+  sourceName?: string;
+}
 
 interface SurfboardListItem {
   _id: string;
@@ -15,6 +24,8 @@ interface SurfboardListItem {
   slug: { current: string };
   category?: SurfboardCategory;
   sourceName?: string;
+  stockStatus?: string;
+  relatedListings?: RelatedListingItem[];
 }
 
 interface SearchParams {
@@ -25,6 +36,7 @@ interface SearchParams {
   source?: string;
   q?: string;
   sort?: SortOption;
+  bestPrice?: string;
 }
 
 function getOrderClause(sort: SortOption | undefined): string {
@@ -90,7 +102,9 @@ function buildGroqQuery(params: SearchParams): string {
     shaper,
     slug,
     category,
-    sourceName
+    sourceName,
+    stockStatus,
+    relatedListings[]->{ _id, price, stockStatus, sourceName }
   }`;
 }
 
@@ -118,6 +132,7 @@ function formatPrice(price: number | undefined): string {
 
 function ProductCard({ surfboard }: { surfboard: SurfboardListItem }) {
   const primaryImage = surfboard.images?.[0];
+  const bestPriceInfo = getBestPriceInfo(surfboard);
 
   return (
     <Link href={`/surfboards/${surfboard.slug.current}`} className="group">
@@ -143,6 +158,11 @@ function ProductCard({ surfboard }: { surfboard: SurfboardListItem }) {
               </svg>
             </div>
           )}
+          {bestPriceInfo.isBestPrice && (
+            <div className="absolute right-2 top-2">
+              <Badge variant="success">Best Price</Badge>
+            </div>
+          )}
         </div>
         <div className="p-4">
           <h3 className="truncate text-sm font-semibold text-gray-900 dark:text-white">
@@ -154,9 +174,16 @@ function ProductCard({ surfboard }: { surfboard: SurfboardListItem }) {
             </p>
           )}
           <div className="mt-2 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
-              {formatPrice(surfboard.price)}
-            </p>
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                {formatPrice(surfboard.price)}
+              </p>
+              {bestPriceInfo.savings != null && (
+                <p className="text-xs font-medium text-green-600 dark:text-green-400">
+                  Save {formatPrice(bestPriceInfo.savings)}
+                </p>
+              )}
+            </div>
             {surfboard.sourceName && (
               <span className="truncate rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                 {surfboard.sourceName}
@@ -229,13 +256,35 @@ export default async function SurfboardsPage({
     getTotalCount(),
   ]);
 
+  // Apply client-side best price filter
+  const bestPriceFilter = params.bestPrice === "true";
+  let filteredSurfboards = bestPriceFilter
+    ? surfboards.filter((s) => {
+        const info = getBestPriceInfo(s);
+        // Show if best price OR standalone (no related listings)
+        return info.isBestPrice || !s.relatedListings || s.relatedListings.length === 0;
+      })
+    : surfboards;
+
+  // Apply client-side savings sort
+  if (params.sort === "savings") {
+    filteredSurfboards = [...filteredSurfboards].sort((a, b) => {
+      const aInfo = getBestPriceInfo(a);
+      const bInfo = getBestPriceInfo(b);
+      const aSavings = aInfo.savings ?? -1;
+      const bSavings = bInfo.savings ?? -1;
+      return bSavings - aSavings;
+    });
+  }
+
   const hasActiveFilters = !!(
     (params.category && params.category !== "all") ||
     params.minPrice ||
     params.maxPrice ||
     (params.shaper && params.shaper !== "all") ||
     (params.source && params.source !== "all") ||
-    params.q
+    params.q ||
+    params.bestPrice === "true"
   );
 
   return (
@@ -262,12 +311,13 @@ export default async function SurfboardsPage({
           maxPrice: params.maxPrice || "",
           shaper: params.shaper || "all",
           source: params.source || "all",
+          bestPrice: params.bestPrice || "",
         }}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          Showing {surfboards.length} of {totalCount} boards
+          Showing {filteredSurfboards.length} of {totalCount} boards
           {hasActiveFilters && (
             <span className="ml-1 text-blue-600 dark:text-blue-400">(filtered)</span>
           )}
@@ -275,11 +325,11 @@ export default async function SurfboardsPage({
         <SortSelect currentSort={params.sort || "newest"} />
       </div>
 
-      {surfboards.length === 0 ? (
+      {filteredSurfboards.length === 0 ? (
         <EmptyState searchTerm={params.q} />
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {surfboards.map((surfboard) => (
+          {filteredSurfboards.map((surfboard) => (
             <ProductCard key={surfboard._id} surfboard={surfboard} />
           ))}
         </div>
