@@ -1,19 +1,19 @@
-# Ralph Progress Log - Best Price Badge
+# Ralph Progress Log - Dimension Search
 
 ## Codebase Patterns
 - Use `sanityFetch` for reading from Sanity CMS
 - Use `sanityWriteClient` for writing to Sanity CMS
-- Scraper types go in `lib/scraper/types.ts` or source-specific types files
-- Source-specific scrapers go in `lib/scraper/[source-name]/` folders
-- API routes use x-api-key header authentication via `SYNC_API_KEY` env var
-- URL-based filters: use client component with useSearchParams/useRouter for interactive controls, server component builds GROQ query from searchParams
-- Next.js 15 searchParams in pages are Promises: use `const params = await searchParams;`
-- Existing Badge component at components/ui/badge.tsx with variants: default, success, warning, error, info
-- Product cards defined as ProductCard component in app/surfboards/page.tsx
-- Product detail page at app/surfboards/[slug]/page.tsx with relatedListings already resolved via GROQ
-- Filter controls in app/surfboards/filter-controls.tsx using URL search params
-- Sort options in app/surfboards/sort-select.tsx
-- GROQ dereference: relatedListings[]->{ fields } to resolve references
+- Sanity schemas in `lib/cms/schemas/`, use `defineType` and `defineField` from "sanity"
+- Surfboard type in `types/index.ts`, dimensions and volume are currently optional strings
+- Existing `normalizeDimensions()` in `lib/scraper/duplicate-detector.ts` extracts length only — do NOT reuse for full parsing
+- Scrapers: `lib/scraper/detail-scraper.ts` (HSS), `lib/scraper/surfgarage/detail-scraper.ts`, `lib/scraper/surfboard-factory/detail-scraper.ts`
+- ScrapedProduct interface in `lib/scraper/types.ts`
+- upsertSurfboard in `lib/cms/write-client.ts`
+- Filter controls in `app/surfboards/filter-controls.tsx` using URL search params
+- GROQ query built in `buildGroqQuery()` in `app/surfboards/page.tsx`
+- Dimension string formats: "5'8 x 20 13/16 x 2 1/4" (fractions), "5'8 x 19.5 x 2.5" (decimals), "5'8" (length only)
+- Volume string formats: "28.8", "28.8L", "V28.8"
+- Utility functions go in `lib/utils/`
 
 ---
 

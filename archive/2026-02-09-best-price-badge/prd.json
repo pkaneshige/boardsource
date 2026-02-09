@@ -1,0 +1,115 @@
+{
+  "project": "BoardSource Surfboard Catalog",
+  "branchName": "ralph/best-price-badge",
+  "description": "Add Best Price badge to product cards and detail pages, price comparison table, and filter/sort by best price. Computes best price at query time by comparing relatedListings prices for in-stock boards.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fetch relatedListings data in the product list query",
+      "description": "As a developer, I need relatedListings price and stock data available on the list page so the badge can be computed at query time.",
+      "acceptanceCriteria": [
+        "Update the GROQ list query in app/surfboards/page.tsx to include relatedListings[]->{ _id, price, stockStatus, sourceName }",
+        "Update the SurfboardListItem type to include the new relatedListings fields",
+        "Existing list page rendering still works with no visual changes",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Fetching relatedListings in list query"
+    },
+    {
+      "id": "US-002",
+      "title": "Create best price utility function",
+      "description": "As a developer, I need a reusable function to determine whether a listing has the best price among its related listings.",
+      "acceptanceCriteria": [
+        "Create getBestPriceInfo(product) function in lib/utils/best-price.ts",
+        "Function accepts a product with price, stockStatus, and relatedListings (each with price and stockStatus)",
+        "Returns { isBestPrice: boolean, savings: number | null, lowestPrice: number | null, competitorCount: number }",
+        "Only considers listings with stockStatus !== 'out_of_stock' and a valid price",
+        "A product with no relatedListings or no in-stock competitors returns { isBestPrice: false, savings: null, lowestPrice: null, competitorCount: 0 }",
+        "When two listings have the same price, both are considered best price",
+        "savings is the difference between the highest competitor price and this listing's price",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Creating best price utility function"
+    },
+    {
+      "id": "US-003",
+      "title": "Add Best Price badge to product cards",
+      "description": "As a user, I want to see a Best Price badge on product cards so I can quickly identify the cheapest listing without clicking into each one.",
+      "acceptanceCriteria": [
+        "Product cards show a green Best Price badge (using existing Badge component with variant=success) when getBestPriceInfo() returns isBestPrice: true",
+        "Badge is positioned in the top-right corner of the card image area using absolute positioning",
+        "If savings amount is available, show Save $X text below the price (e.g., Save $50)",
+        "Badge does not appear on products with no related listings",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Adding Best Price badge to product cards"
+    },
+    {
+      "id": "US-004",
+      "title": "Enhance detail page with price comparison table",
+      "description": "As a user, I want to compare prices across all vendors on the detail page so I can make an informed purchase decision.",
+      "acceptanceCriteria": [
+        "Replace the existing Also available at list with a Price Comparison section on the detail page",
+        "Show a table/list with columns: Vendor, Price, Stock Status, and a Buy link",
+        "Include the current listing in the comparison (not just relatedListings)",
+        "Highlight the row with the lowest price using a green background or border",
+        "Sort listings by price ascending (cheapest first)",
+        "Out-of-stock listings appear at the bottom, grayed out with Out of Stock text",
+        "Each row links to the respective product detail page (for related listings) or shows Buy Now linking to sourceUrl (for current listing)",
+        "Update the detail page GROQ query to also fetch stockStatus for relatedListings",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Enhancing detail page with price comparison"
+    },
+    {
+      "id": "US-005",
+      "title": "Add Best Price Only filter",
+      "description": "As a user, I want to filter the product list to show only best-priced listings so I can browse without seeing duplicate higher-priced options.",
+      "acceptanceCriteria": [
+        "Add a Best Price Only toggle/checkbox to the filter controls in app/surfboards/filter-controls.tsx",
+        "When enabled, only show products where getBestPriceInfo() returns isBestPrice: true, plus products with no related listings (standalone products)",
+        "Filter state is stored in URL search params as bestPrice=true",
+        "Apply client-side post-filtering since best price is computed, not stored in Sanity",
+        "Filter works in combination with all existing filters (category, price range, shaper, source)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Adding Best Price Only filter"
+    },
+    {
+      "id": "US-006",
+      "title": "Add Biggest Savings sort option",
+      "description": "As a user, I want to sort products by savings amount so I can find boards where this vendor offers the biggest price advantage.",
+      "acceptanceCriteria": [
+        "Add Biggest Savings option to the sort dropdown in app/surfboards/sort-select.tsx",
+        "Sorts products by savings amount descending (largest savings first)",
+        "Products with no savings (no related listings or not best price) appear at the bottom",
+        "This is a client-side sort applied after GROQ query results return (since savings is computed, not stored)",
+        "Sort persists in URL search params as sort=savings",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Adding Biggest Savings sort option"
+    }
+  ]
+}

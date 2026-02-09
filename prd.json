@@ -1,115 +1,130 @@
 {
   "project": "BoardSource Surfboard Catalog",
-  "branchName": "ralph/best-price-badge",
-  "description": "Add Best Price badge to product cards and detail pages, price comparison table, and filter/sort by best price. Computes best price at query time by comparing relatedListings prices for in-stock boards.",
+  "branchName": "ralph/dimension-search",
+  "description": "Add structured numeric dimension fields to surfboard schema, parse existing dimension strings, backfill data, and add length/width/thickness/volume filters to the product listing page.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Fetch relatedListings data in the product list query",
-      "description": "As a developer, I need relatedListings price and stock data available on the list page so the badge can be computed at query time.",
+      "title": "Add structured dimension fields to Sanity schema",
+      "description": "As a developer, I need numeric dimension fields in the surfboard schema so dimensions can be queried and filtered.",
       "acceptanceCriteria": [
-        "Update the GROQ list query in app/surfboards/page.tsx to include relatedListings[]->{ _id, price, stockStatus, sourceName }",
-        "Update the SurfboardListItem type to include the new relatedListings fields",
-        "Existing list page rendering still works with no visual changes",
+        "Add lengthFeet (number), lengthInches (number), widthInches (number), thicknessInches (number), volumeLiters (number) fields to lib/cms/schemas/surfboard.ts",
+        "Group these under a fieldset called Parsed Dimensions in the schema",
+        "Add corresponding optional number fields to the Surfboard interface in types/index.ts",
+        "Keep existing dimensions and volume string fields unchanged",
         "Typecheck passes"
       ],
       "priority": 1,
       "passes": false,
       "notes": "",
-      "activeForm": "Fetching relatedListings in list query"
+      "activeForm": "Adding dimension fields to Sanity schema"
     },
     {
       "id": "US-002",
-      "title": "Create best price utility function",
-      "description": "As a developer, I need a reusable function to determine whether a listing has the best price among its related listings.",
+      "title": "Create dimension parsing utility",
+      "description": "As a developer, I need a utility to parse dimension strings into structured numeric values.",
       "acceptanceCriteria": [
-        "Create getBestPriceInfo(product) function in lib/utils/best-price.ts",
-        "Function accepts a product with price, stockStatus, and relatedListings (each with price and stockStatus)",
-        "Returns { isBestPrice: boolean, savings: number | null, lowestPrice: number | null, competitorCount: number }",
-        "Only considers listings with stockStatus !== 'out_of_stock' and a valid price",
-        "A product with no relatedListings or no in-stock competitors returns { isBestPrice: false, savings: null, lowestPrice: null, competitorCount: 0 }",
-        "When two listings have the same price, both are considered best price",
-        "savings is the difference between the highest competitor price and this listing's price",
+        "Create lib/utils/parse-dimensions.ts with parseDimensionString(dimensions: string) function",
+        "Returns { lengthFeet: number, lengthInches: number, widthInches: number | null, thicknessInches: number | null } or null if unparseable",
+        "Handle formats: 5'8 x 20 13/16 x 2 1/4, 5'8 x 19.5 x 2.5, 5'8 (length only), 5-8, 5ft 8in",
+        "Handle fractional inches: 20 13/16 -> 20.8125, 2 1/4 -> 2.25",
+        "Create parseVolumeString(volume: string) that returns number | null",
+        "Handle volume formats: 28.8, 28.8L, V28.8, volume: 28.8",
         "Typecheck passes"
       ],
       "priority": 2,
       "passes": false,
       "notes": "",
-      "activeForm": "Creating best price utility function"
+      "activeForm": "Creating dimension parsing utility"
     },
     {
       "id": "US-003",
-      "title": "Add Best Price badge to product cards",
-      "description": "As a user, I want to see a Best Price badge on product cards so I can quickly identify the cheapest listing without clicking into each one.",
+      "title": "Populate dimensions during Hawaiian South Shore sync",
+      "description": "As a developer, I need the Hawaiian South Shore sync to populate structured dimension fields.",
       "acceptanceCriteria": [
-        "Product cards show a green Best Price badge (using existing Badge component with variant=success) when getBestPriceInfo() returns isBestPrice: true",
-        "Badge is positioned in the top-right corner of the card image area using absolute positioning",
-        "If savings amount is available, show Save $X text below the price (e.g., Save $50)",
-        "Badge does not appear on products with no related listings",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "Add optional parsed dimension fields (lengthFeet, lengthInches, widthInches, thicknessInches, volumeLiters) to ScrapedProduct interface in lib/scraper/types.ts",
+        "Update lib/scraper/detail-scraper.ts to call parseDimensionString() on the scraped dimensions string and parseVolumeString() on the volume string",
+        "Update upsertSurfboard() in lib/cms/write-client.ts to write the new numeric fields when present",
+        "Typecheck passes"
       ],
       "priority": 3,
       "passes": false,
       "notes": "",
-      "activeForm": "Adding Best Price badge to product cards"
+      "activeForm": "Populating dimensions in HSS sync"
     },
     {
       "id": "US-004",
-      "title": "Enhance detail page with price comparison table",
-      "description": "As a user, I want to compare prices across all vendors on the detail page so I can make an informed purchase decision.",
+      "title": "Populate dimensions during Surf Garage and Surfboard Factory sync",
+      "description": "As a developer, I need the other scrapers to also populate structured dimension fields.",
       "acceptanceCriteria": [
-        "Replace the existing Also available at list with a Price Comparison section on the detail page",
-        "Show a table/list with columns: Vendor, Price, Stock Status, and a Buy link",
-        "Include the current listing in the comparison (not just relatedListings)",
-        "Highlight the row with the lowest price using a green background or border",
-        "Sort listings by price ascending (cheapest first)",
-        "Out-of-stock listings appear at the bottom, grayed out with Out of Stock text",
-        "Each row links to the respective product detail page (for related listings) or shows Buy Now linking to sourceUrl (for current listing)",
-        "Update the detail page GROQ query to also fetch stockStatus for relatedListings",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "Update lib/scraper/surfgarage/detail-scraper.ts to call parseDimensionString() and parseVolumeString() and set parsed fields on ScrapedProduct",
+        "Update lib/scraper/surfboard-factory/detail-scraper.ts to call parseDimensionString() and parseVolumeString() and set parsed fields on ScrapedProduct",
+        "Both scrapers set the same parsed fields as the Hawaiian South Shore scraper",
+        "Typecheck passes"
       ],
       "priority": 4,
       "passes": false,
       "notes": "",
-      "activeForm": "Enhancing detail page with price comparison"
+      "activeForm": "Populating dimensions in other scrapers"
     },
     {
       "id": "US-005",
-      "title": "Add Best Price Only filter",
-      "description": "As a user, I want to filter the product list to show only best-priced listings so I can browse without seeing duplicate higher-priced options.",
+      "title": "Create backfill script for existing products",
+      "description": "As a developer, I need to parse dimensions for all existing products that have dimension strings but no parsed values.",
       "acceptanceCriteria": [
-        "Add a Best Price Only toggle/checkbox to the filter controls in app/surfboards/filter-controls.tsx",
-        "When enabled, only show products where getBestPriceInfo() returns isBestPrice: true, plus products with no related listings (standalone products)",
-        "Filter state is stored in URL search params as bestPrice=true",
-        "Apply client-side post-filtering since best price is computed, not stored in Sanity",
-        "Filter works in combination with all existing filters (category, price range, shaper, source)",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "Create scripts/backfill-dimensions.ts",
+        "Fetch all surfboards from Sanity that have dimensions or volume string fields",
+        "Parse each product's dimension and volume strings using parseDimensionString() and parseVolumeString()",
+        "Update each product in Sanity with the parsed numeric fields",
+        "Log summary: total processed, successfully parsed, failed to parse, skipped (already has values)",
+        "Run with npx tsx scripts/backfill-dimensions.ts",
+        "Typecheck passes"
       ],
       "priority": 5,
       "passes": false,
       "notes": "",
-      "activeForm": "Adding Best Price Only filter"
+      "activeForm": "Creating backfill script"
     },
     {
       "id": "US-006",
-      "title": "Add Biggest Savings sort option",
-      "description": "As a user, I want to sort products by savings amount so I can find boards where this vendor offers the biggest price advantage.",
+      "title": "Add dimension filter GROQ queries and search params",
+      "description": "As a developer, I need the GROQ query builder and search params to support dimension filtering.",
       "acceptanceCriteria": [
-        "Add Biggest Savings option to the sort dropdown in app/surfboards/sort-select.tsx",
-        "Sorts products by savings amount descending (largest savings first)",
-        "Products with no savings (no related listings or not best price) appear at the bottom",
-        "This is a client-side sort applied after GROQ query results return (since savings is computed, not stored)",
-        "Sort persists in URL search params as sort=savings",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "Add minLength, maxLength, minWidth, maxWidth, minThickness, maxThickness, minVolume, maxVolume to SearchParams interface in app/surfboards/page.tsx",
+        "Update buildGroqQuery() to add GROQ conditions for each dimension filter when present",
+        "Length filter uses (lengthFeet * 12 + lengthInches) for total inches comparison",
+        "Width and thickness filters compare widthInches and thicknessInches directly",
+        "Volume filter compares volumeLiters directly",
+        "Products without parsed dimensions are excluded only when a dimension filter is actively set",
+        "Update SurfboardListItem to include dimension fields for display",
+        "Typecheck passes"
       ],
       "priority": 6,
       "passes": false,
       "notes": "",
-      "activeForm": "Adding Biggest Savings sort option"
+      "activeForm": "Adding dimension filter queries"
+    },
+    {
+      "id": "US-007",
+      "title": "Add dimension filter UI controls",
+      "description": "As a user, I want filter inputs for length, width, thickness, and volume so I can find boards matching my specs.",
+      "acceptanceCriteria": [
+        "Add Length filter to filter-controls.tsx with min/max number inputs (in total inches) with placeholder text showing format",
+        "Add Width filter with min/max number inputs in inches",
+        "Add Thickness filter with min/max number inputs in inches",
+        "Add Volume filter with min/max number inputs in liters",
+        "Group dimension filters in a collapsible Dimensions section to avoid cluttering the filter bar",
+        "Update currentFilters interface and props to include all dimension filter values",
+        "Pass dimension filter values from page.tsx to FilterControls",
+        "All dimension filters persist in URL search params",
+        "Include dimension filters in hasActiveFilters check and clearAllFilters",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Adding dimension filter UI controls"
     }
   ]
 }
