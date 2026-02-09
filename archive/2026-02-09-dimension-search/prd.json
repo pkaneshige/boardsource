@@ -1,0 +1,130 @@
+{
+  "project": "BoardSource Surfboard Catalog",
+  "branchName": "ralph/dimension-search",
+  "description": "Add structured numeric dimension fields to surfboard schema, parse existing dimension strings, backfill data, and add length/width/thickness/volume filters to the product listing page.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add structured dimension fields to Sanity schema",
+      "description": "As a developer, I need numeric dimension fields in the surfboard schema so dimensions can be queried and filtered.",
+      "acceptanceCriteria": [
+        "Add lengthFeet (number), lengthInches (number), widthInches (number), thicknessInches (number), volumeLiters (number) fields to lib/cms/schemas/surfboard.ts",
+        "Group these under a fieldset called Parsed Dimensions in the schema",
+        "Add corresponding optional number fields to the Surfboard interface in types/index.ts",
+        "Keep existing dimensions and volume string fields unchanged",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Adding dimension fields to Sanity schema"
+    },
+    {
+      "id": "US-002",
+      "title": "Create dimension parsing utility",
+      "description": "As a developer, I need a utility to parse dimension strings into structured numeric values.",
+      "acceptanceCriteria": [
+        "Create lib/utils/parse-dimensions.ts with parseDimensionString(dimensions: string) function",
+        "Returns { lengthFeet: number, lengthInches: number, widthInches: number | null, thicknessInches: number | null } or null if unparseable",
+        "Handle formats: 5'8 x 20 13/16 x 2 1/4, 5'8 x 19.5 x 2.5, 5'8 (length only), 5-8, 5ft 8in",
+        "Handle fractional inches: 20 13/16 -> 20.8125, 2 1/4 -> 2.25",
+        "Create parseVolumeString(volume: string) that returns number | null",
+        "Handle volume formats: 28.8, 28.8L, V28.8, volume: 28.8",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Creating dimension parsing utility"
+    },
+    {
+      "id": "US-003",
+      "title": "Populate dimensions during Hawaiian South Shore sync",
+      "description": "As a developer, I need the Hawaiian South Shore sync to populate structured dimension fields.",
+      "acceptanceCriteria": [
+        "Add optional parsed dimension fields (lengthFeet, lengthInches, widthInches, thicknessInches, volumeLiters) to ScrapedProduct interface in lib/scraper/types.ts",
+        "Update lib/scraper/detail-scraper.ts to call parseDimensionString() on the scraped dimensions string and parseVolumeString() on the volume string",
+        "Update upsertSurfboard() in lib/cms/write-client.ts to write the new numeric fields when present",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Populating dimensions in HSS sync"
+    },
+    {
+      "id": "US-004",
+      "title": "Populate dimensions during Surf Garage and Surfboard Factory sync",
+      "description": "As a developer, I need the other scrapers to also populate structured dimension fields.",
+      "acceptanceCriteria": [
+        "Update lib/scraper/surfgarage/detail-scraper.ts to call parseDimensionString() and parseVolumeString() and set parsed fields on ScrapedProduct",
+        "Update lib/scraper/surfboard-factory/detail-scraper.ts to call parseDimensionString() and parseVolumeString() and set parsed fields on ScrapedProduct",
+        "Both scrapers set the same parsed fields as the Hawaiian South Shore scraper",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Populating dimensions in other scrapers"
+    },
+    {
+      "id": "US-005",
+      "title": "Create backfill script for existing products",
+      "description": "As a developer, I need to parse dimensions for all existing products that have dimension strings but no parsed values.",
+      "acceptanceCriteria": [
+        "Create scripts/backfill-dimensions.ts",
+        "Fetch all surfboards from Sanity that have dimensions or volume string fields",
+        "Parse each product's dimension and volume strings using parseDimensionString() and parseVolumeString()",
+        "Update each product in Sanity with the parsed numeric fields",
+        "Log summary: total processed, successfully parsed, failed to parse, skipped (already has values)",
+        "Run with npx tsx scripts/backfill-dimensions.ts",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Creating backfill script"
+    },
+    {
+      "id": "US-006",
+      "title": "Add dimension filter GROQ queries and search params",
+      "description": "As a developer, I need the GROQ query builder and search params to support dimension filtering.",
+      "acceptanceCriteria": [
+        "Add minLength, maxLength, minWidth, maxWidth, minThickness, maxThickness, minVolume, maxVolume to SearchParams interface in app/surfboards/page.tsx",
+        "Update buildGroqQuery() to add GROQ conditions for each dimension filter when present",
+        "Length filter uses (lengthFeet * 12 + lengthInches) for total inches comparison",
+        "Width and thickness filters compare widthInches and thicknessInches directly",
+        "Volume filter compares volumeLiters directly",
+        "Products without parsed dimensions are excluded only when a dimension filter is actively set",
+        "Update SurfboardListItem to include dimension fields for display",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Adding dimension filter queries"
+    },
+    {
+      "id": "US-007",
+      "title": "Add dimension filter UI controls",
+      "description": "As a user, I want filter inputs for length, width, thickness, and volume so I can find boards matching my specs.",
+      "acceptanceCriteria": [
+        "Add Length filter to filter-controls.tsx with min/max number inputs (in total inches) with placeholder text showing format",
+        "Add Width filter with min/max number inputs in inches",
+        "Add Thickness filter with min/max number inputs in inches",
+        "Add Volume filter with min/max number inputs in liters",
+        "Group dimension filters in a collapsible Dimensions section to avoid cluttering the filter bar",
+        "Update currentFilters interface and props to include all dimension filter values",
+        "Pass dimension filter values from page.tsx to FilterControls",
+        "All dimension filters persist in URL search params",
+        "Include dimension filters in hasActiveFilters check and clearAllFilters",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "",
+      "activeForm": "Adding dimension filter UI controls"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+# Ralph Progress Log - Dimension Search
+
+## Codebase Patterns
+- Use `sanityFetch` for reading from Sanity CMS
+- Use `sanityWriteClient` for writing to Sanity CMS
+- Sanity schemas in `lib/cms/schemas/`, use `defineType` and `defineField` from "sanity"
+- Surfboard type in `types/index.ts`, dimensions and volume are currently optional strings
+- Existing `normalizeDimensions()` in `lib/scraper/duplicate-detector.ts` extracts length only — do NOT reuse for full parsing
+- Scrapers: `lib/scraper/detail-scraper.ts` (HSS), `lib/scraper/surfgarage/detail-scraper.ts`, `lib/scraper/surfboard-factory/detail-scraper.ts`
+- ScrapedProduct interface in `lib/scraper/types.ts`
+- upsertSurfboard in `lib/cms/write-client.ts`
+- Filter controls in `app/surfboards/filter-controls.tsx` using URL search params
+- GROQ query built in `buildGroqQuery()` in `app/surfboards/page.tsx`
+- Dimension string formats: "5'8 x 20 13/16 x 2 1/4" (fractions), "5'8 x 19.5 x 2.5" (decimals), "5'8" (length only)
+- Volume string formats: "28.8", "28.8L", "V28.8"
+- Utility functions go in `lib/utils/`
+
+---
+

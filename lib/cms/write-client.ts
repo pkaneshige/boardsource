@@ -1,24 +1,12 @@
-import { createClient } from "next-sanity";
 import type { ScrapedProduct } from "@/lib/scraper";
 import type { SurfboardCategory, StockStatus, SurfboardSource } from "@/types";
-
-// Environment variable configuration
-const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || "production";
-const apiVersion = process.env.NEXT_PUBLIC_SANITY_API_VERSION || "2024-01-01";
-const token = process.env.SANITY_API_TOKEN;
+import { sanityWriteClient } from "./sanity-write-client";
+import { recordPriceSnapshot } from "./price-history";
 
 /**
- * Sanity client with write permissions for creating and updating products.
- * Requires SANITY_API_TOKEN environment variable to be set.
+ * Re-export the shared write client for backwards compatibility.
  */
-export const writeClient = createClient({
-  projectId,
-  dataset,
-  apiVersion,
-  token,
-  useCdn: false, // Must be false for write operations
-});
+export const writeClient = sanityWriteClient;
 
 /**
  * Generates a URL-friendly slug from a product name.
@@ -251,6 +239,8 @@ export async function upsertSurfboard(
     if (existingDoc) {
       // Update existing document
       await writeClient.patch(existingDoc._id).set(documentData).commit();
+      // Record price snapshot (resilient — won't throw)
+      await recordPriceSnapshot(existingDoc._id, product.price, product.stockStatus, product.source);
       return {
         success: true,
         documentId: existingDoc._id,
@@ -259,6 +249,8 @@ export async function upsertSurfboard(
     } else {
       // Create new document
       const result = await writeClient.create(documentData);
+      // Record initial price snapshot (resilient — won't throw)
+      await recordPriceSnapshot(result._id, product.price, product.stockStatus, product.source);
       return {
         success: true,
         documentId: result._id,

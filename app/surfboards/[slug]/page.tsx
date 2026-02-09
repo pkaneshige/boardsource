@@ -2,7 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { sanityFetch, urlFor } from "@/lib/cms";
+import { getPriceHistory } from "@/lib/cms/price-history";
 import { Badge } from "@/components/ui/badge";
+import { PriceHistoryChart } from "./price-history-chart";
 import type { Surfboard } from "@/types";
 
 const SURFBOARD_BY_SLUG_QUERY = `*[_type == "surfboard" && slug.current == $slug][0] {
@@ -293,6 +295,7 @@ export default async function SurfboardDetailPage({
     notFound();
   }
 
+  const priceHistory = await getPriceHistory(surfboard._id);
   const isOutOfStock = surfboard.stockStatus === "out_of_stock";
 
   return (
@@ -367,6 +370,18 @@ export default async function SurfboardDetailPage({
               <p className="mt-2 whitespace-pre-line text-gray-600 dark:text-gray-400">
                 {surfboard.description}
               </p>
+            </div>
+          )}
+
+          {priceHistory.length >= 2 && (
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Price History</h2>
+              <div className="mt-3">
+                <PriceHistoryChart
+                  snapshots={priceHistory}
+                  currentPrice={surfboard.price ?? 0}
+                />
+              </div>
             </div>
           )}
 

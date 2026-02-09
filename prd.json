@@ -1,130 +1,111 @@
 {
   "project": "BoardSource Surfboard Catalog",
-  "branchName": "ralph/dimension-search",
-  "description": "Add structured numeric dimension fields to surfboard schema, parse existing dimension strings, backfill data, and add length/width/thickness/volume filters to the product listing page.",
+  "branchName": "ralph/price-history",
+  "description": "Track surfboard price changes over time by recording price snapshots during sync and displaying an interactive line chart with time range selector and summary stats on the product detail page.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Add structured dimension fields to Sanity schema",
-      "description": "As a developer, I need numeric dimension fields in the surfboard schema so dimensions can be queried and filtered.",
+      "title": "Create priceSnapshot Sanity schema",
+      "description": "As a developer, I need a Sanity document type to store individual price snapshots so that price history data persists in the CMS.",
       "acceptanceCriteria": [
-        "Add lengthFeet (number), lengthInches (number), widthInches (number), thicknessInches (number), volumeLiters (number) fields to lib/cms/schemas/surfboard.ts",
-        "Group these under a fieldset called Parsed Dimensions in the schema",
-        "Add corresponding optional number fields to the Surfboard interface in types/index.ts",
-        "Keep existing dimensions and volume string fields unchanged",
+        "Create lib/cms/schemas/price-snapshot.ts with a priceSnapshot document type using defineType/defineField",
+        "Fields: surfboard (reference to surfboard, required), price (number, required), stockStatus (string), source (string), recordedAt (datetime, required)",
+        "Add schema to lib/cms/schemas/index.ts exports and schemaTypes array",
         "Typecheck passes"
       ],
       "priority": 1,
       "passes": false,
-      "notes": "",
-      "activeForm": "Adding dimension fields to Sanity schema"
+      "notes": ""
     },
     {
       "id": "US-002",
-      "title": "Create dimension parsing utility",
-      "description": "As a developer, I need a utility to parse dimension strings into structured numeric values.",
+      "title": "Record price snapshots during sync",
+      "description": "As a developer, I want the sync process to automatically record a price snapshot when a product's price changes so that history builds up passively with each scrape.",
       "acceptanceCriteria": [
-        "Create lib/utils/parse-dimensions.ts with parseDimensionString(dimensions: string) function",
-        "Returns { lengthFeet: number, lengthInches: number, widthInches: number | null, thicknessInches: number | null } or null if unparseable",
-        "Handle formats: 5'8 x 20 13/16 x 2 1/4, 5'8 x 19.5 x 2.5, 5'8 (length only), 5-8, 5ft 8in",
-        "Handle fractional inches: 20 13/16 -> 20.8125, 2 1/4 -> 2.25",
-        "Create parseVolumeString(volume: string) that returns number | null",
-        "Handle volume formats: 28.8, 28.8L, V28.8, volume: 28.8",
+        "Create lib/cms/price-history.ts with recordPriceSnapshot(surfboardId: string, price: number, stockStatus: string, source: string) function",
+        "Function fetches the most recent priceSnapshot for that surfboard using GROQ: *[_type == 'priceSnapshot' && surfboard._ref == $id] | order(recordedAt desc)[0]",
+        "Only creates a new snapshot if price or stockStatus differs from the latest snapshot (or no snapshot exists)",
+        "Creates a priceSnapshot document with recordedAt set to new Date().toISOString()",
+        "Function is resilient: wraps in try/catch so failures don't break the sync process (logs error and returns)",
+        "Integrate into upsertSurfboard() in lib/cms/write-client.ts: after successful create or update, call recordPriceSnapshot with the document ID, product price, stockStatus, and source",
         "Typecheck passes"
       ],
       "priority": 2,
       "passes": false,
-      "notes": "",
-      "activeForm": "Creating dimension parsing utility"
+      "notes": ""
     },
     {
       "id": "US-003",
-      "title": "Populate dimensions during Hawaiian South Shore sync",
-      "description": "As a developer, I need the Hawaiian South Shore sync to populate structured dimension fields.",
+      "title": "Create price history query utility",
+      "description": "As a developer, I need a function to fetch price history for a surfboard so the detail page can display it.",
       "acceptanceCriteria": [
-        "Add optional parsed dimension fields (lengthFeet, lengthInches, widthInches, thicknessInches, volumeLiters) to ScrapedProduct interface in lib/scraper/types.ts",
-        "Update lib/scraper/detail-scraper.ts to call parseDimensionString() on the scraped dimensions string and parseVolumeString() on the volume string",
-        "Update upsertSurfboard() in lib/cms/write-client.ts to write the new numeric fields when present",
+        "Add getPriceHistory(surfboardId: string, days?: number) export to lib/cms/price-history.ts",
+        "Returns array of { price: number, stockStatus: string, recordedAt: string } sorted by recordedAt ascending",
+        "When days is provided, filter to snapshots where recordedAt >= now minus N days",
+        "When days is omitted, return all snapshots for that surfboard",
+        "Uses sanityFetch with parameterized GROQ query",
+        "Export the return type as PriceSnapshot for use by UI components",
         "Typecheck passes"
       ],
       "priority": 3,
       "passes": false,
-      "notes": "",
-      "activeForm": "Populating dimensions in HSS sync"
+      "notes": ""
     },
     {
       "id": "US-004",
-      "title": "Populate dimensions during Surf Garage and Surfboard Factory sync",
-      "description": "As a developer, I need the other scrapers to also populate structured dimension fields.",
+      "title": "Install recharts and build PriceHistoryChart client component",
+      "description": "As a user, I want to see a line chart showing how a surfboard's price has changed over time so I can decide if now is a good time to buy.",
       "acceptanceCriteria": [
-        "Update lib/scraper/surfgarage/detail-scraper.ts to call parseDimensionString() and parseVolumeString() and set parsed fields on ScrapedProduct",
-        "Update lib/scraper/surfboard-factory/detail-scraper.ts to call parseDimensionString() and parseVolumeString() and set parsed fields on ScrapedProduct",
-        "Both scrapers set the same parsed fields as the Hawaiian South Shore scraper",
-        "Typecheck passes"
-      ],
-      "priority": 4,
-      "passes": false,
-      "notes": "",
-      "activeForm": "Populating dimensions in other scrapers"
-    },
-    {
-      "id": "US-005",
-      "title": "Create backfill script for existing products",
-      "description": "As a developer, I need to parse dimensions for all existing products that have dimension strings but no parsed values.",
-      "acceptanceCriteria": [
-        "Create scripts/backfill-dimensions.ts",
-        "Fetch all surfboards from Sanity that have dimensions or volume string fields",
-        "Parse each product's dimension and volume strings using parseDimensionString() and parseVolumeString()",
-        "Update each product in Sanity with the parsed numeric fields",
-        "Log summary: total processed, successfully parsed, failed to parse, skipped (already has values)",
-        "Run with npx tsx scripts/backfill-dimensions.ts",
-        "Typecheck passes"
-      ],
-      "priority": 5,
-      "passes": false,
-      "notes": "",
-      "activeForm": "Creating backfill script"
-    },
-    {
-      "id": "US-006",
-      "title": "Add dimension filter GROQ queries and search params",
-      "description": "As a developer, I need the GROQ query builder and search params to support dimension filtering.",
-      "acceptanceCriteria": [
-        "Add minLength, maxLength, minWidth, maxWidth, minThickness, maxThickness, minVolume, maxVolume to SearchParams interface in app/surfboards/page.tsx",
-        "Update buildGroqQuery() to add GROQ conditions for each dimension filter when present",
-        "Length filter uses (lengthFeet * 12 + lengthInches) for total inches comparison",
-        "Width and thickness filters compare widthInches and thicknessInches directly",
-        "Volume filter compares volumeLiters directly",
-        "Products without parsed dimensions are excluded only when a dimension filter is actively set",
-        "Update SurfboardListItem to include dimension fields for display",
-        "Typecheck passes"
-      ],
-      "priority": 6,
-      "passes": false,
-      "notes": "",
-      "activeForm": "Adding dimension filter queries"
-    },
-    {
-      "id": "US-007",
-      "title": "Add dimension filter UI controls",
-      "description": "As a user, I want filter inputs for length, width, thickness, and volume so I can find boards matching my specs.",
-      "acceptanceCriteria": [
-        "Add Length filter to filter-controls.tsx with min/max number inputs (in total inches) with placeholder text showing format",
-        "Add Width filter with min/max number inputs in inches",
-        "Add Thickness filter with min/max number inputs in inches",
-        "Add Volume filter with min/max number inputs in liters",
-        "Group dimension filters in a collapsible Dimensions section to avoid cluttering the filter bar",
-        "Update currentFilters interface and props to include all dimension filter values",
-        "Pass dimension filter values from page.tsx to FilterControls",
-        "All dimension filters persist in URL search params",
-        "Include dimension filters in hasActiveFilters check and clearAllFilters",
+        "Install recharts: npm install recharts",
+        "Create app/surfboards/[slug]/price-history-chart.tsx as a 'use client' component",
+        "Props: snapshots (array of PriceSnapshot from price-history.ts), currentPrice (number)",
+        "Render a recharts LineChart with Line, XAxis, YAxis, Tooltip, ResponsiveContainer",
+        "X-axis shows dates formatted as MMM D (e.g., Jan 15), Y-axis shows price in USD with $ prefix",
+        "Tooltip shows exact price formatted as currency and full date on hover",
+        "Chart has min-height of 200px and is responsive via ResponsiveContainer",
+        "Shows 'No price history available' message when snapshots array is empty or has fewer than 2 entries",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
-      "priority": 7,
+      "priority": 4,
       "passes": false,
-      "notes": "",
-      "activeForm": "Adding dimension filter UI controls"
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Add time range selector and summary stats to chart",
+      "description": "As a user, I want to toggle between 30d/90d/All views and see key price statistics so I can quickly assess the deal.",
+      "acceptanceCriteria": [
+        "Add toggle buttons (30d / 90d / All) above the chart in price-history-chart.tsx",
+        "Selected range has blue background, unselected have gray/outline style (pill-shaped segmented control)",
+        "Default to 90d view, filter snapshots client-side based on selected range",
+        "Display stats grid below the chart: All-Time Low, All-Time High, Average Price, % Change over selected period",
+        "All-Time Low highlighted in green (using Badge variant='success') if it equals the current price",
+        "Stats update when time range changes",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Integrate price history into product detail page",
+      "description": "As a user, I want to see the price history chart on the surfboard detail page so I don't have to navigate elsewhere.",
+      "acceptanceCriteria": [
+        "Import getPriceHistory from lib/cms/price-history and PriceHistoryChart component in app/surfboards/[slug]/page.tsx",
+        "Fetch all-time price history server-side using getPriceHistory(surfboard._id) (no days param, fetch all)",
+        "Add Price History section between the description and the buy button",
+        "Section has h2 heading 'Price History'",
+        "Only render the section when there are 2 or more price snapshots",
+        "Pass snapshots and surfboard.price as props to PriceHistoryChart",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
     }
   ]
 }
