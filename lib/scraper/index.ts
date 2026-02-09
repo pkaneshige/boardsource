@@ -82,8 +82,23 @@ export type { SurfgarageSyncOptions } from "./surfgarage/sync";
 // Duplicate detection
 export {
   findDuplicates,
+  logMatchDetails,
   normalizeName,
   createComparisonKey,
   calculateSimilarity,
+  normalizeDimensions,
+  extractBrand,
+  extractModel,
+  extractProductSignature,
+  compareSignatures,
+  KNOWN_BRANDS,
+  DEFAULT_MATCHER_CONFIG,
 } from "./duplicate-detector";
-export type { DuplicateMatch, DuplicateDetectorOptions } from "./duplicate-detector";
+export type {
+  DuplicateMatch,
+  DuplicateDetectorOptions,
+  DuplicateMatcherConfig,
+  NormalizedDimensions,
+  ProductSignature,
+  SignatureComparisonResult,
+} from "./duplicate-detector";

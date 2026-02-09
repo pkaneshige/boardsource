@@ -1,474 +1,178 @@
 {
   "project": "BoardSource Surfboard Catalog",
-  "branchName": "ralph/surfboard-scraper",
-  "description": "Surfboard Data Scraper & Product Catalog - Scrape surfboard data from multiple sources (hawaiiansouthshore.com, surfgarage.squarespace.com), store in Sanity CMS, and display in an e-commerce-style product catalog with filtering, search, and redirect to source for purchase.",
+  "branchName": "ralph/duplicate-detection-improvement",
+  "description": "Improve duplicate detection to accurately match surfboards listed at multiple stores. Uses structured comparison (brand + model + dimensions) instead of raw string similarity to achieve 80%+ detection accuracy.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Create Sanity schema for surfboard products",
-      "description": "As a developer, I need a Sanity schema to store scraped surfboard data so products persist and are manageable via CMS.",
+      "title": "Analyze current duplicate detection gaps",
+      "description": "As a developer, I need to understand why the current system finds 0 matches.",
       "acceptanceCriteria": [
-        "Create `surfboard` document type in lib/cms/schemas/surfboard.ts",
-        "Include fields: name (string), price (number), images (array of image), dimensions (string), volume (string), shaper (string), description (text)",
-        "Include fields: sourceUrl (url), sourceId (string), slug (slug), lastScrapedAt (datetime)",
-        "Include category field with options: shortboard, longboard, funboard, fish, gun, mid-length, other",
-        "Include stockStatus field with options: in_stock, out_of_stock, unknown (default: unknown)",
-        "Register schema in lib/cms/schemas/index.ts schemaTypes array",
-        "Add Surfboard type to types/index.ts",
+        "Create script at scripts/analyze-duplicates.ts to query all products from Sanity",
+        "Log sample product names from each source (Hawaiian South Shore, Surf Garage)",
+        "Identify and document naming pattern differences (dimension format, brand placement, color descriptions)",
+        "Create at least 5 test cases of known duplicate boards in lib/scraper/__tests__/duplicate-test-cases.ts",
         "Typecheck passes"
       ],
       "priority": 1,
       "passes": true,
-      "notes": ""
+      "notes": "",
+      "activeForm": "Analyzing duplicate detection gaps"
     },
     {
       "id": "US-002",
-      "title": "Analyze hawaiiansouthshore.com and create scraper types",
-      "description": "As a developer, I need to understand the site structure and define TypeScript types for scraped data.",
+      "title": "Implement dimension normalization",
+      "description": "As a developer, I need to normalize board dimensions for comparison.",
       "acceptanceCriteria": [
-        "Create lib/scraper/types.ts with ScrapedProduct interface matching all product fields",
-        "Create lib/scraper/config.ts with base URL, selectors, and rate limit settings",
-        "Document the site structure in comments (product list URL pattern, pagination method, product detail URL pattern)",
-        "Create lib/scraper/index.ts barrel export",
+        "Create normalizeDimensions() function in lib/scraper/duplicate-detector.ts",
+        "Handle formats: \"5'8\", \"5'8\\\"\", \"5ft 8in\", \"5-8\", \"5'8 x 19.5 x 2.5\"",
+        "Extract length and convert to total inches as number (e.g., 5'8\" = 68)",
+        "Return null if no valid dimension found",
+        "Add unit tests in lib/scraper/__tests__/duplicate-detector.test.ts",
         "Typecheck passes"
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Site is Shopify-based with JSON API. Types include ScrapedProduct, ShopifyProduct, ShopifyVariant, ShopifyImage. Config includes URL builders, rate limiting (1-2s delay), and category inference helpers."
+      "notes": "",
+      "activeForm": "Implementing dimension normalization"
     },
     {
       "id": "US-003",
-      "title": "Build product list page scraper",
-      "description": "As a system, I need to scrape the product listing pages to get all surfboard URLs and basic info.",
+      "title": "Implement brand/shaper extraction",
+      "description": "As a developer, I need to reliably extract brand names regardless of position in title.",
       "acceptanceCriteria": [
-        "Create lib/scraper/list-scraper.ts",
-        "Function scrapes surfboard collection/category pages from hawaiiansouthshore.com",
-        "Extracts product URLs, names, and prices from list view",
-        "Handles pagination to capture all products",
-        "Returns array of {url, name, price} objects",
-        "Implements rate limiting (minimum 1 second between requests)",
+        "Create extractBrand() function in lib/scraper/duplicate-detector.ts",
+        "Create KNOWN_BRANDS array with: Firewire, Chris Christenson, Channel Islands, Pyzel, JS, Lost, DHD, Haydenshapes, Album, Torq, Bing, Donald Takayama, Hawaiian Pro Designs",
+        "Handle brand at start, middle, or end of product name",
+        "Return normalized brand name (lowercase, trimmed) or null if not found",
+        "Add unit tests covering various brand positions",
         "Typecheck passes"
       ],
       "priority": 3,
       "passes": true,
-      "notes": "Uses Shopify JSON API at /collections/{handle}/products.json with pagination. Returns ProductListItem[] with url, name, price, handle. Rate limited with 1-2s delay between pages."
+      "notes": "",
+      "activeForm": "Implementing brand extraction"
     },
     {
       "id": "US-004",
-      "title": "Build product detail page scraper",
-      "description": "As a system, I need to scrape individual product pages for full details.",
+      "title": "Implement model name extraction",
+      "description": "As a developer, I need to extract the model name from product titles.",
       "acceptanceCriteria": [
-        "Create lib/scraper/detail-scraper.ts",
-        "Function accepts product URL and returns full ScrapedProduct",
-        "Extracts: all images, dimensions, volume, shaper/brand, full description",
-        "Generates unique sourceId from URL or product identifier",
-        "Handles missing/optional fields gracefully (returns null/undefined)",
-        "Implements rate limiting",
+        "Create extractModel() function in lib/scraper/duplicate-detector.ts",
+        "Remove brand name, dimensions, and color/finish descriptions from title",
+        "Handle common model names: Seaside, Machado, Fish, Acid Phish, Lane Splitter, Special-T, etc.",
+        "Normalize spacing, punctuation, and case",
+        "Add unit tests with various product name formats",
         "Typecheck passes"
       ],
       "priority": 4,
       "passes": true,
-      "notes": "Uses Shopify JSON API at /products/{handle}.json. Extracts dimensions/volume from variant titles using regex patterns. Returns ScrapedProduct with full details or null on failure."
+      "notes": "",
+      "activeForm": "Implementing model extraction"
     },
     {
       "id": "US-005",
-      "title": "Create Sanity write client for product sync",
-      "description": "As a developer, I need a Sanity client with write permissions to create and update products.",
+      "title": "Create structured product comparison",
+      "description": "As a developer, I need to compare products using structured data, not just string similarity.",
       "acceptanceCriteria": [
-        "Create lib/cms/write-client.ts with authenticated Sanity client",
-        "Add SANITY_API_TOKEN to .env.local.example (for write operations)",
-        "Create upsertSurfboard function that creates or updates by sourceId",
-        "Function generates slug from product name",
-        "Function sets lastScrapedAt to current timestamp",
-        "Export from lib/cms/index.ts",
+        "Create ProductSignature type with: brand (string | null), model (string), lengthInches (number | null), source (string)",
+        "Create extractProductSignature() function that returns ProductSignature from product name",
+        "Create compareSignatures() function that returns match score 0-1",
+        "Matching rules: brand must match (if both have brand), model similarity > 0.8, length within ±1 inch",
+        "Add unit tests for signature extraction and comparison",
         "Typecheck passes"
       ],
       "priority": 5,
       "passes": true,
-      "notes": "Created writeClient with SANITY_API_TOKEN auth. upsertSurfboard function queries by sourceId to determine create vs update, generates slug with generateSlug helper, sets lastScrapedAt to ISO timestamp. Accepts optional imageAssets array for image references."
+      "notes": "",
+      "activeForm": "Creating structured product comparison"
     },
     {
       "id": "US-006",
-      "title": "Add image upload to sync service",
-      "description": "As a developer, I need to download product images and upload them to Sanity assets.",
+      "title": "Update findDuplicates to use structured comparison",
+      "description": "As a developer, I need to replace the current string-only matching with structured comparison.",
       "acceptanceCriteria": [
-        "Create lib/cms/image-upload.ts with uploadImageFromUrl function",
-        "Function downloads image from external URL",
-        "Function uploads to Sanity asset storage and returns asset reference",
-        "Function handles errors gracefully (returns null on failure)",
-        "Update upsertSurfboard to use uploaded image references",
+        "Update findDuplicates() function to use extractProductSignature() and compareSignatures()",
+        "Keep crossSourceOnly option (only match products from different sources)",
+        "Return matches with confidence score based on how many fields matched",
+        "Log detailed match info: brand match, model similarity, length difference",
+        "Add integration tests with real product name examples",
         "Typecheck passes"
       ],
       "priority": 6,
       "passes": true,
-      "notes": "Created uploadImageFromUrl and uploadImagesFromUrls functions. Downloads image via fetch, converts to buffer, and uploads to Sanity using writeClient.assets.upload. Returns ImageUploadResult with asset reference or null on failure. upsertSurfboard already accepts imageAssets parameter."
+      "notes": "",
+      "activeForm": "Updating findDuplicates function"
     },
     {
       "id": "US-007",
-      "title": "Create full sync orchestrator",
-      "description": "As a developer, I need a function that orchestrates the full scrape and sync process.",
+      "title": "Implement configurable matching rules",
+      "description": "As a developer, I need to tune matching behavior without code changes.",
       "acceptanceCriteria": [
-        "Create lib/scraper/sync.ts with syncAllProducts function",
-        "Function calls list scraper, then detail scraper for each product",
-        "Function upserts each product to Sanity with images",
-        "Function marks products as out_of_stock if no longer found in scrape",
-        "Function returns summary: {created: number, updated: number, failed: number}",
-        "Logs progress and errors",
+        "Create DuplicateMatcherConfig type with: lengthToleranceInches, requireBrandMatch, modelSimilarityThreshold, minConfidenceToAutoLink",
+        "Create DEFAULT_MATCHER_CONFIG with sensible defaults (1 inch tolerance, 0.8 model similarity, 0.7 confidence)",
+        "Update findDuplicates() to accept optional config parameter",
+        "Document configuration options in code comments",
         "Typecheck passes"
       ],
       "priority": 7,
       "passes": true,
-      "notes": "Created syncAllProducts function with SyncOptions. Orchestrates list scraping, detail scraping with rate limiting, image upload to Sanity, and upsert. Marks missing products as out_of_stock by comparing scraped sourceIds with existing Sanity documents. Returns SyncResult with created/updated/failed counts and error details."
+      "notes": "",
+      "activeForm": "Implementing configurable matching"
     },
     {
       "id": "US-008",
-      "title": "Create API endpoint for manual sync trigger",
-      "description": "As an admin, I want an API endpoint to manually trigger a product sync.",
+      "title": "Create duplicate detection script",
+      "description": "As a developer, I need to run improved detection on all existing products.",
       "acceptanceCriteria": [
-        "Create app/api/sync/route.ts with POST handler",
-        "Endpoint calls syncAllProducts function",
-        "Endpoint returns JSON with sync summary",
-        "Endpoint is protected (check for API key or admin auth)",
-        "Add SYNC_API_KEY to .env.local.example",
+        "Create scripts/run-duplicate-detection.ts",
+        "Fetch all in-stock surfboards from Sanity",
+        "Run findDuplicates with new structured comparison",
+        "Log matches found with confidence scores and match details",
+        "Update relatedListings for matched products using linkRelatedListings()",
+        "Report summary: total products, matches found, links created",
         "Typecheck passes"
       ],
       "priority": 8,
       "passes": true,
-      "notes": "Created POST /api/sync endpoint protected by x-api-key header. Validates against SYNC_API_KEY env var. Accepts optional JSON body with sync options (collection, maxProducts, uploadImages, markMissingAsOutOfStock). Returns JSON with success status, summary counts, and any errors."
+      "notes": "",
+      "activeForm": "Creating duplicate detection script"
     },
     {
       "id": "US-009",
-      "title": "Create products listing page",
-      "description": "As a user, I want to browse all surfboards in a grid layout so I can discover products easily.",
+      "title": "Add manual duplicate linking API",
+      "description": "As a developer, I need API endpoints for manual duplicate management.",
       "acceptanceCriteria": [
-        "Create app/surfboards/page.tsx",
-        "Fetch surfboards from Sanity with GROQ query",
-        "Responsive grid layout: 1 col mobile, 2 col tablet, 3-4 col desktop",
-        "Product card shows: primary image, name, price, shaper/brand",
-        "Cards link to /surfboards/[slug] detail page",
-        "Loading skeleton while data fetches (create app/surfboards/loading.tsx)",
-        "Empty state when no products available",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "Create app/api/duplicates/link/route.ts with POST handler",
+        "Accept: productId1, productId2 in request body",
+        "Validate both products exist and are from different sources",
+        "Call linkRelatedListings() to link bidirectionally",
+        "Return success response with updated product IDs",
+        "Protect with x-api-key authentication",
+        "Typecheck passes"
       ],
       "priority": 9,
       "passes": true,
-      "notes": "Created app/surfboards/page.tsx with GROQ query fetching surfboards. Responsive grid (1/2/3/4 cols). ProductCard component displays image (via urlFor helper), name, shaper, price. Cards link to /surfboards/[slug]. Loading skeleton in loading.tsx. Empty state with messaging. Added lib/cms/image-url.ts for Sanity image URL building. Updated next.config.ts with Sanity CDN remote pattern."
+      "notes": "",
+      "activeForm": "Adding manual linking API"
     },
     {
       "id": "US-010",
-      "title": "Create product detail page",
-      "description": "As a user, I want to view full product details so I can make an informed decision before purchasing.",
+      "title": "Add manual duplicate unlinking API",
+      "description": "As a developer, I need to remove incorrect duplicate links.",
       "acceptanceCriteria": [
-        "Create app/surfboards/[slug]/page.tsx",
-        "Fetch product by slug from Sanity",
-        "Display all product images in gallery (simple grid or carousel)",
-        "Show full details: name, price, dimensions, volume, shaper, description",
-        "Prominent 'Buy at Hawaiian South Shore' button linking to sourceUrl",
-        "Button opens in new tab (target='_blank' with rel='noopener noreferrer')",
-        "Return 404 for missing products using notFound()",
-        "Create app/surfboards/[slug]/loading.tsx",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "Create app/api/duplicates/unlink/route.ts with POST handler",
+        "Accept: productId1, productId2 in request body",
+        "Remove productId2 from productId1's relatedListings and vice versa",
+        "Create unlinkRelatedListings() function in lib/cms/write-client.ts",
+        "Return success response",
+        "Protect with x-api-key authentication",
+        "Typecheck passes"
       ],
       "priority": 10,
       "passes": true,
-      "notes": "Created app/surfboards/[slug]/page.tsx with product detail page. Fetches product by slug using GROQ query. Image gallery displays main image large with thumbnails below. Shows all details: name, price, dimensions, volume, shaper, category, description. Prominent 'Buy at Hawaiian South Shore' button opens sourceUrl in new tab. Returns 404 via notFound() for missing products. Loading skeleton in loading.tsx matches page structure."
-    },
-    {
-      "id": "US-011",
-      "title": "Add filtering to products page",
-      "description": "As a user, I want to filter surfboards by type and price so I can find boards that match my criteria.",
-      "acceptanceCriteria": [
-        "Add filter controls to surfboards page (above or beside grid)",
-        "Filter by board category (dropdown with: All, Shortboard, Longboard, etc.)",
-        "Filter by price range (min/max number inputs)",
-        "Filter by shaper/brand (dropdown populated from available shapers)",
-        "Filters persist in URL query params (?category=shortboard&minPrice=500)",
-        "Clear filters button resets all filters",
-        "Product count updates to show 'Showing X of Y boards'",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 11,
-      "passes": true,
-      "notes": "Created FilterControls client component with category dropdown, price range inputs (min/max), and shaper dropdown populated dynamically from Sanity. Filters persist in URL query params (?category=shortboard&minPrice=500). Clear filters button resets all params. Product count displays 'Showing X of Y boards' with (filtered) indicator. GROQ query dynamically built with filter conditions."
-    },
-    {
-      "id": "US-012",
-      "title": "Add search functionality",
-      "description": "As a user, I want to search surfboards by name or description so I can quickly find specific boards.",
-      "acceptanceCriteria": [
-        "Add search input to surfboards page header",
-        "Search queries name, shaper, and description fields via GROQ",
-        "Search is debounced (300ms delay before query)",
-        "Search term persists in URL query param (?q=searchterm)",
-        "Results update as user types (after debounce)",
-        "Show 'No results found' message when search yields nothing",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 12,
-      "passes": true,
-      "notes": "Created SearchInput client component with 300ms debounce using useRef for timer. Search input in page header with search icon. GROQ query uses `match` operator with wildcard pattern for name, shaper, and description fields. Search term persists in URL as ?q=searchterm. EmptyState shows 'No results found' with search term when search yields no results."
-    },
-    {
-      "id": "US-013",
-      "title": "Add sorting options",
-      "description": "As a user, I want to sort products by price or name so I can organize the catalog to my preference.",
-      "acceptanceCriteria": [
-        "Add sort dropdown to surfboards page",
-        "Sort options: Price (Low to High), Price (High to Low), Name (A-Z), Newest",
-        "Sort persists in URL query param (?sort=price-asc)",
-        "Default sort is 'Newest' (by lastScrapedAt descending)",
-        "Sorting works in combination with filters and search",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 13,
-      "passes": true,
-      "notes": "Created SortSelect client component with 4 sort options. GROQ query dynamically builds order clause based on sort param. Default is newest (lastScrapedAt desc). Sort persists in URL as ?sort=price-asc. Works with all existing filters and search."
-    },
-    {
-      "id": "US-014",
-      "title": "Add surfboards link to dashboard navigation",
-      "description": "As a user, I want to access the surfboards page from the dashboard so I can easily navigate to the catalog.",
-      "acceptanceCriteria": [
-        "Add 'Surfboards' nav item to components/dashboard/sidebar.tsx defaultNavItems",
-        "Use surfboard/wave icon (inline SVG)",
-        "Link points to /surfboards",
-        "Link shows active state when on /surfboards or /surfboards/* pages",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 14,
-      "passes": true,
-      "notes": "Added Surfboards nav item to sidebar defaultNavItems array with custom surfboard-shaped icon (rounded board outline with stringer/center line). Link points to /surfboards and uses existing isActive logic which handles startsWith pattern matching for active state on /surfboards/*. Browser verification not available; manual testing needed."
-    },
-    {
-      "id": "US-015",
-      "title": "Add source field to surfboard schema",
-      "description": "As a developer, I need to track which vendor a product comes from so users can identify the source.",
-      "acceptanceCriteria": [
-        "Add `source` field to Sanity surfboard schema (string: 'hawaiian-south-shore' | 'surfgarage')",
-        "Add `sourceName` field for display purposes (e.g., 'Hawaiian South Shore', 'Surf Garage')",
-        "Update Surfboard TypeScript type in types/index.ts with new fields",
-        "Update existing Hawaiian South Shore sync to set source: 'hawaiian-south-shore' and sourceName: 'Hawaiian South Shore'",
-        "Typecheck passes"
-      ],
-      "priority": 15,
-      "passes": true,
-      "notes": "Added source and sourceName fields to Sanity surfboard schema with dropdown options. Created SurfboardSource type in types/index.ts. Updated ScrapedProduct interface with source fields. Updated upsertSurfboard to persist source fields. Updated detail-scraper to set source='hawaiian-south-shore' and sourceName='Hawaiian South Shore' for Hawaiian South Shore products."
-    },
-    {
-      "id": "US-016",
-      "title": "Create Squarespace scraper types",
-      "description": "As a developer, I need TypeScript types for Squarespace JSON API responses.",
-      "acceptanceCriteria": [
-        "Create `lib/scraper/squarespace-types.ts` with interfaces for Squarespace JSON responses",
-        "Define `SquarespaceProduct` interface with fields: id, title, urlId, excerpt, body, variants, items (images)",
-        "Define `SquarespaceVariant` interface with fields: id, sku, price (in cents), stock",
-        "Define `SquarespaceImage` interface with fields: id, assetUrl, originalSize",
-        "Define `SquarespaceCollectionResponse` for collection page responses",
-        "Export types from lib/scraper/index.ts",
-        "Typecheck passes"
-      ],
-      "priority": 16,
-      "passes": true,
-      "notes": "Created lib/scraper/squarespace-types.ts with SquarespaceProduct, SquarespaceVariant, SquarespaceImage, SquarespaceCollection, SquarespaceCollectionResponse, and SquarespaceProductResponse interfaces. All types exported from lib/scraper/index.ts."
-    },
-    {
-      "id": "US-017",
-      "title": "Create Surfgarage scraper configuration",
-      "description": "As a developer, I need configuration for the Surfgarage scraper including base URL and category mappings.",
-      "acceptanceCriteria": [
-        "Create `lib/scraper/surfgarage/config.ts` with base URL (https://surfgarage.squarespace.com)",
-        "Define SURFGARAGE_CATEGORIES array: ['longboards', 'shortboards', 'alternativeboards', 'guns', 'vintageboards']",
-        "Map Surfgarage categories to SurfboardCategory enum (alternativeboards -> 'other', vintageboards -> 'other')",
-        "Configure rate limiting: 2-3 second delay between requests",
-        "Create URL builder functions: getCategoryUrl(category), getProductUrl(category, productId)",
-        "Typecheck passes"
-      ],
-      "priority": 17,
-      "passes": true,
-      "notes": "Created lib/scraper/surfgarage/config.ts with base URL, SURFGARAGE_CATEGORIES array, CATEGORY_MAPPING to SurfboardCategory, rate limiting (2-3s delay), and URL builders (getCategoryUrl, getProductUrl, getProductPageUrl). Also includes source/sourceName constants, headers, and helper functions."
-    },
-    {
-      "id": "US-018",
-      "title": "Implement Surfgarage list scraper",
-      "description": "As a developer, I need to fetch product listings from Surfgarage collection pages.",
-      "acceptanceCriteria": [
-        "Create `lib/scraper/surfgarage/list-scraper.ts` with scrapeSurfgarageList function",
-        "Fetch from `/<category>?format=json` endpoints",
-        "Parse Squarespace collection response to extract product items",
-        "Return array of ProductListItem with url, name, price (converted from cents), handle (urlId)",
-        "Implement rate limiting with 2-3s random delay between category requests",
-        "Handle errors gracefully (log and continue with next category)",
-        "Typecheck passes"
-      ],
-      "priority": 18,
-      "passes": true,
-      "notes": "Created lib/scraper/surfgarage/list-scraper.ts with scrapeSurfgarageList function. Fetches from /<category>?format=json endpoints. Parses Squarespace collection response and converts prices from cents to dollars. Returns ProductListItem[] with url, name, price, handle (urlId). Implements 2-3s rate limiting between category requests. Handles errors gracefully by logging and continuing."
-    },
-    {
-      "id": "US-019",
-      "title": "Implement Surfgarage detail scraper",
-      "description": "As a developer, I need to fetch individual product details from Surfgarage.",
-      "acceptanceCriteria": [
-        "Create `lib/scraper/surfgarage/detail-scraper.ts` with scrapeSurfgarageDetail function",
-        "Fetch from `/<category>/<product-id>?format=json`",
-        "Extract: name (title), price (from variants, convert cents to dollars), images (from items array)",
-        "Build sourceUrl from category and urlId",
-        "Generate sourceId prefixed with 'surfgarage-' to avoid collisions",
-        "Convert Squarespace response to ScrapedProduct format",
-        "Handle errors gracefully (return null on failure)",
-        "Typecheck passes"
-      ],
-      "priority": 19,
-      "passes": true,
-      "notes": "Created lib/scraper/surfgarage/detail-scraper.ts with scrapeSurfgarageDetail and scrapeSurfgarageDetails functions. Fetches from /<category>/<product-id>?format=json endpoint. Extracts name, price (cents to dollars), images from items array. Builds sourceUrl using surfgarageUrls.getProductPageUrl. Generates sourceId with 'surfgarage-' prefix. Converts Squarespace response to ScrapedProduct format with all fields. Returns null on failure with error logging. Exported from lib/scraper/index.ts."
-    },
-    {
-      "id": "US-020",
-      "title": "Create Surfgarage sync orchestrator",
-      "description": "As a developer, I need an orchestrator to run the full Surfgarage sync process.",
-      "acceptanceCriteria": [
-        "Create `lib/scraper/surfgarage/sync.ts` with syncSurfgarageProducts function",
-        "Iterate through all categories in SURFGARAGE_CATEGORIES",
-        "For each category: scrape list, then scrape details for each product",
-        "Upload images to Sanity and upsert products with source: 'surfgarage', sourceName: 'Surf Garage'",
-        "Mark Surfgarage products no longer found as out_of_stock (only affect surfgarage source)",
-        "Return SyncResult with created, updated, failed counts",
-        "Typecheck passes"
-      ],
-      "priority": 20,
-      "passes": true,
-      "notes": "Created lib/scraper/surfgarage/sync.ts with syncSurfgarageProducts function. Orchestrates full sync: scrapes list from all categories, scrapes details for each product with rate limiting, uploads images to Sanity, upserts products with source='surfgarage' and sourceName='Surf Garage'. Marks missing Surfgarage products as out_of_stock (only affects surfgarage source via GROQ filter). Returns SyncResult with created/updated/failed counts and error details. Exported from lib/scraper/index.ts."
-    },
-    {
-      "id": "US-021",
-      "title": "Add Surfgarage sync API endpoint",
-      "description": "As a developer, I need an API endpoint to trigger Surfgarage syncs.",
-      "acceptanceCriteria": [
-        "Create `app/api/sync/surfgarage/route.ts` with POST handler",
-        "Protect with same x-api-key header as existing sync endpoint",
-        "Accept optional JSON body with category filter (single category or all)",
-        "Call syncSurfgarageProducts and return JSON with sync summary",
-        "Return appropriate error responses for invalid requests",
-        "Typecheck passes"
-      ],
-      "priority": 21,
-      "passes": true,
-      "notes": "Created POST /api/sync/surfgarage endpoint protected by x-api-key header. Validates against SYNC_API_KEY env var. Accepts optional JSON body with category filter (single category validated against SURFGARAGE_CATEGORIES). Returns JSON with success status, summary counts, and any errors. Invalid category returns 400 Bad Request with allowed values."
-    },
-    {
-      "id": "US-022",
-      "title": "Add source indicator to product cards",
-      "description": "As a user, I want to see which vendor a board is from so I know where to buy it.",
-      "acceptanceCriteria": [
-        "Update ProductCard component to display sourceName as a small badge/label",
-        "Position badge in top-right corner of product image or below shaper name",
-        "Use subtle styling (small text, muted color) to not distract from main content",
-        "Handle missing sourceName gracefully (show nothing or 'Unknown')",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 22,
-      "passes": true,
-      "notes": "Added sourceName field to SurfboardListItem interface and GROQ query. Updated ProductCard to display sourceName as a small muted badge next to the price. Uses subtle styling (10px text, gray background, rounded corners) that doesn't distract from main content. Missing sourceName is handled gracefully by showing nothing."
-    },
-    {
-      "id": "US-023",
-      "title": "Update product detail page for multi-source",
-      "description": "As a user, I want the buy button to show the correct source name.",
-      "acceptanceCriteria": [
-        "Update detail page to display sourceName in product info section",
-        "Change buy button text from 'Buy at Hawaiian South Shore' to 'Buy at {sourceName}'",
-        "Handle missing sourceName gracefully (fallback to 'Buy Now')",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 23,
-      "passes": true,
-      "notes": "Added source and sourceName fields to GROQ query and SurfboardDetailItem interface. Display 'Available at {sourceName}' below shaper name in product info section. Buy button dynamically shows 'Buy at {sourceName}' or falls back to 'Buy Now' when sourceName is missing."
-    },
-    {
-      "id": "US-024",
-      "title": "Add relatedListings field to schema",
-      "description": "As a developer, I need to store references to duplicate listings from other vendors.",
-      "acceptanceCriteria": [
-        "Add `relatedListings` field to Sanity surfboard schema (array of references to surfboard)",
-        "Update Surfboard TypeScript type with relatedListings field",
-        "Field should allow referencing other surfboard documents",
-        "Typecheck passes"
-      ],
-      "priority": 24,
-      "passes": true,
-      "notes": "Added relatedListings field to Sanity surfboard schema as array of references to surfboard documents. Created SurfboardReference type in types/index.ts and added relatedListings property to Surfboard interface."
-    },
-    {
-      "id": "US-025",
-      "title": "Implement duplicate detection",
-      "description": "As a developer, I need to detect when the same board exists from multiple vendors.",
-      "acceptanceCriteria": [
-        "Create `lib/scraper/duplicate-detector.ts` with findDuplicates function",
-        "Use string similarity on normalized product names (lowercase, remove special chars)",
-        "Match on combination of shaper + model name with 0.85+ similarity threshold",
-        "Return array of { productId, matchedProductId, similarity } for matches found",
-        "Export function from lib/scraper/index.ts",
-        "Typecheck passes"
-      ],
-      "priority": 25,
-      "passes": true,
-      "notes": "Created lib/scraper/duplicate-detector.ts with findDuplicates function using Levenshtein-based string similarity. normalizeName() converts to lowercase and removes special chars. createComparisonKey() combines shaper + name for matching. calculateSimilarity() returns 0-1 score. Default threshold 0.85, crossSourceOnly=true to only match across vendors. Returns DuplicateMatch[] with productId, matchedProductId, similarity. Exported from lib/scraper/index.ts."
-    },
-    {
-      "id": "US-026",
-      "title": "Link duplicates during sync",
-      "description": "As a developer, I need to automatically link duplicate products during sync.",
-      "acceptanceCriteria": [
-        "Update Surfgarage sync to run duplicate detection after upserting products",
-        "For each match found, update both products' relatedListings to reference each other",
-        "Only link products from different sources (don't link two Surfgarage products)",
-        "Log duplicate matches found for monitoring",
-        "Typecheck passes"
-      ],
-      "priority": 26,
-      "passes": true,
-      "notes": "Updated Surfgarage sync with Phase 4: duplicate detection and linking. Created linkRelatedListings function in write-client.ts that updates both products' relatedListings arrays bidirectionally (with duplicate check to avoid re-linking). Sync fetches all in-stock surfboards, runs findDuplicates with crossSourceOnly=true and 0.85 threshold, then links each match. Logs duplicate matches with similarity percentages."
-    },
-    {
-      "id": "US-027",
-      "title": "Display 'Also available at' on product detail",
-      "description": "As a user, I want to see if a board is available from other vendors so I can compare prices.",
-      "acceptanceCriteria": [
-        "Add 'Also available at' section to product detail page",
-        "Only show section when relatedListings array has items",
-        "For each related listing, show: sourceName, price, link to that product's detail page",
-        "Style as a secondary card below main product info",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 27,
-      "passes": true,
-      "notes": "Added relatedListings to GROQ query with dereferenced details (slug, price, sourceName). Added 'Also available at' section below buy button that only renders when relatedListings array has items. Each listing displays sourceName and price, links to that product's detail page. Styled as secondary card with subtle background, rounded corners, hover effects, and dark mode support."
-    },
-    {
-      "id": "US-028",
-      "title": "Add source filter to products page",
-      "description": "As a user, I want to filter products by source so I can browse boards from a specific vendor.",
-      "acceptanceCriteria": [
-        "Add 'Source' dropdown to FilterControls component",
-        "Options: All, Hawaiian South Shore, Surf Garage",
-        "Filter persists in URL query param (?source=surfgarage)",
-        "Update GROQ query to filter by source field when param present",
-        "Works in combination with existing category, price, shaper, and search filters",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 28,
-      "passes": true,
-      "notes": "Added Source dropdown to FilterControls with All Sources, Hawaiian South Shore, and Surf Garage options. Filter persists in URL as ?source=hawaiian-south-shore or ?source=surfgarage. GROQ query filters by source field when param present. Works with all existing filters (category, price, shaper, search, sort). Browser verification not available; manual testing needed."
+      "notes": "",
+      "activeForm": "Adding manual unlinking API"
     }
   ]
 }

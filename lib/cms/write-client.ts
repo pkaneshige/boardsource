@@ -148,6 +148,54 @@ export async function linkRelatedListings(
   }
 }
 
+/**
+ * Unlinks two surfboard documents by removing them from each other's relatedListings.
+ * Removes productId2 from productId1's relatedListings and vice versa.
+ *
+ * @param productId1 - First product's Sanity document ID
+ * @param productId2 - Second product's Sanity document ID
+ * @returns True if both updates succeeded, false otherwise
+ */
+export async function unlinkRelatedListings(
+  productId1: string,
+  productId2: string
+): Promise<boolean> {
+  try {
+    // Fetch current relatedListings for both products
+    const [productA, productB] = await Promise.all([
+      writeClient.fetch<{ relatedListings?: Array<{ _ref: string; _key: string }> } | null>(
+        `*[_type == "surfboard" && _id == $id][0]{ relatedListings }`,
+        { id: productId1 }
+      ),
+      writeClient.fetch<{ relatedListings?: Array<{ _ref: string; _key: string }> } | null>(
+        `*[_type == "surfboard" && _id == $id][0]{ relatedListings }`,
+        { id: productId2 }
+      ),
+    ]);
+
+    if (!productA || !productB) {
+      console.error(`unlinkRelatedListings: Could not find one or both products`);
+      return false;
+    }
+
+    // Filter out the references to each other
+    const aFiltered = (productA.relatedListings || []).filter((ref) => ref._ref !== productId2);
+    const bFiltered = (productB.relatedListings || []).filter((ref) => ref._ref !== productId1);
+
+    // Update product A's relatedListings
+    await writeClient.patch(productId1).set({ relatedListings: aFiltered }).commit();
+
+    // Update product B's relatedListings
+    await writeClient.patch(productId2).set({ relatedListings: bFiltered }).commit();
+
+    return true;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Failed to unlink related listings: ${errorMessage}`);
+    return false;
+  }
+}
+
 export async function upsertSurfboard(
   product: ScrapedProduct,
   imageAssets?: Array<{ _type: "reference"; _ref: string }>

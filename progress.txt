@@ -510,3 +510,206 @@
   - Source values match schema values exactly (e.g., 'hawaiian-south-shore', 'surfgarage')
   - GROQ source filter uses exact match: `source == "${params.source}"`
 ---
+
+## 2026-01-31 - US-001 (Duplicate Detection Improvement)
+- Created `scripts/analyze-duplicates.ts` to query all products from Sanity and analyze duplicate detection gaps
+- Script logs sample product names from each source (Hawaiian South Shore, Surf Garage)
+- Analyzes naming patterns: dimension formats, color in names, brand position
+- Runs current `findDuplicates` at various thresholds (0.85, 0.80, 0.70, 0.60) to show match counts
+- Documents key findings: dimension format differences, brand/shaper handling inconsistencies, model name extraction challenges
+- Created `lib/scraper/__tests__/duplicate-test-cases.ts` with 10 test cases (8 positive, 2 negative)
+- Test cases cover: Firewire Seaside, Channel Islands Fishbeard, Pyzel Phantom, Lost Puddle Jumper, JS Monsta Box, DHD MF DNA, Haydenshapes Hypto Krypto, Album Disasym
+- Includes negative test cases for false positive prevention (different models same brand, same model different sizes)
+- Files changed: scripts/analyze-duplicates.ts (new), lib/scraper/__tests__/duplicate-test-cases.ts (new)
+- **Learnings for future iterations:**
+  - Current string similarity approach fails because names contain too much noise (dimensions, colors, tech names)
+  - Hawaiian South Shore uses full dimensions in name (5'8 x 20 1/4 x 2 1/2), Surf Garage uses just length (5'8")
+  - Brand abbreviations differ: "CI" vs "Channel Islands", "JS" vs "JS Industries"
+  - Need structured comparison: extract brand, model, and length separately, then compare components
+  - Test cases are in DuplicateTestCase interface with shouldMatch boolean for validation
+---
+
+## 2026-01-31 - US-002
+- Implemented `normalizeDimensions()` function in `lib/scraper/duplicate-detector.ts`
+- Function parses surfboard dimension strings and extracts length in total inches
+- Handles multiple formats:
+  - Prime marks: `5'8`, `5'8"`
+  - Spelled out: `5ft 8in`, `5 ft 8 in`
+  - Dash separator: `5-8`
+  - Full dimensions: `5'8 x 19.5 x 2.5` (extracts just length)
+  - Fractions: `5'8 1/2`, `5'10 1/4`
+- Returns `NormalizedDimensions` object with `lengthInches` (number) and `original` (string), or `null` if invalid
+- Helper function `parseInchPart()` handles fractional inches (e.g., "8 1/2" → 8.5)
+- Created `lib/scraper/__tests__/duplicate-detector.test.ts` with 25 test cases
+- Tests run with `npx tsx lib/scraper/__tests__/duplicate-detector.test.ts`
+- Exported `normalizeDimensions` and `NormalizedDimensions` type from `lib/scraper/index.ts`
+- Files changed: lib/scraper/duplicate-detector.ts, lib/scraper/index.ts, lib/scraper/__tests__/duplicate-detector.test.ts (new)
+- **Learnings for future iterations:**
+  - Use multi-pattern approach with early returns for cleaner dimension parsing
+  - Regex order matters: check full dimensions pattern first (has 'x' separator) before simple prime patterns
+  - Dash separator needs validation (feet 4-12, inches 0-11) to avoid false positives with other dash-separated numbers
+  - Fraction parsing: handle "8 1/2" (whole + fraction) vs just "1/2" (fraction only)
+  - Test file can be run with `npx tsx` since project doesn't have a test framework installed
+---
+
+## 2026-02-01 - US-003
+- Implemented `extractBrand()` function in `lib/scraper/duplicate-detector.ts`
+- Created `KNOWN_BRANDS` array with 15 surfboard brands including all specified brands
+- Brands ordered by specificity (longer/multi-word brands first like "Channel Islands", abbreviations last like "CI")
+- Created `BRAND_ALIASES` mapping for abbreviations: CI → "channel islands", JS → "js industries"
+- Uses word boundary regex matching to avoid partial matches (e.g., "Lost" won't match "LostWhale")
+- Returns normalized lowercase brand name or null if no known brand found
+- Added 26 unit tests covering:
+  - Brand at start, middle, and end of name
+  - All specified brands
+  - Abbreviation mapping
+  - Case insensitivity
+  - Edge cases (empty string, whitespace, no match)
+  - Real examples from both Hawaiian South Shore and Surf Garage
+- Exported `extractBrand` and `KNOWN_BRANDS` from `lib/scraper/index.ts`
+- Files changed: lib/scraper/duplicate-detector.ts, lib/scraper/index.ts, lib/scraper/__tests__/duplicate-detector.test.ts
+- **Learnings for future iterations:**
+  - Order known brands by specificity (longer/more specific first) to prevent partial matches
+  - Use word boundary regex (`\b`) to match whole words only
+  - Map abbreviations to canonical names for consistent comparison
+  - escapeRegex helper needed when building regex from user-provided strings
+  - Test file pattern established: import functions, define TestCase interface, run with assertions
+---
+
+## 2026-02-01 - US-004
+- Implemented `extractModel()` function in `lib/scraper/duplicate-detector.ts`
+- Function removes brand names, dimensions, colors, finishes, fin systems, and tech names from product titles
+- Created pattern arrays for systematic removal:
+  - `COLOR_FINISH_PATTERNS`: white, black, blue, clear, carbon, bamboo, etc.
+  - `FIN_SYSTEM_PATTERNS`: fcs, fcs ii, futures, thruster, quad, twin, etc.
+  - `TECH_PATTERNS`: helium, lft, eps, epoxy, futureflex, etc.
+  - `DIMENSION_PATTERNS`: regex patterns for 5'8, 5'8 x 20 x 2.5, 27.5L, 2020, etc.
+- Returns normalized lowercase model name (e.g., "seaside", "hypto krypto", "puddle jumper hp")
+- Added 30 unit tests covering:
+  - Basic model extraction with Hawaiian South Shore and Surf Garage formats
+  - Explicit brand parameter removal
+  - Model names with sub-brands (Mayhem, Machado)
+  - Edge cases (empty strings, unknown brands)
+  - Various dimension formats
+- Exported `extractModel` from `lib/scraper/index.ts`
+- Files changed: lib/scraper/duplicate-detector.ts, lib/scraper/__tests__/duplicate-detector.test.ts, lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Order multi-word patterns first (e.g., "fcs ii" before "fcs") to prevent partial matches leaving orphan words
+  - Include slashes in punctuation removal for patterns like "White/Blue" color combinations
+  - Dimension patterns must be applied before lowercase conversion to handle uppercase X in "5'8 X 20"
+  - Model extraction preserves shaper sub-brands like "Machado" which are important for differentiation
+  - Test for "ii" as standalone pattern to clean up remaining Roman numerals after "FCS II" removal
+---
+
+## 2026-02-01 - US-005
+- Implemented `ProductSignature` type for structured surfboard comparison
+- Created `extractProductSignature()` function that extracts brand, model, lengthInches, and source from product name
+- Created `compareSignatures()` function that returns a match score (0-1) with detailed component info
+- Match scoring rules implemented:
+  - Brand must match if both have brand (otherwise neutral, doesn't penalize)
+  - Model similarity must be > 0.8 for positive match (uses Levenshtein)
+  - Length must be within ±1 inch if both have lengths
+- Score weighting: brand match (20%), model similarity (60%), length match (20%)
+- Created `SignatureComparisonResult` type with score, brandMatch, modelSimilarity, lengthDifferenceInches
+- Fixed `normalizeDimensions()` dash pattern to find dimensions anywhere in string (not just whole string)
+- Added 22 unit tests: 8 for signature extraction, 14 for signature comparison
+- Files changed: lib/scraper/duplicate-detector.ts, lib/scraper/__tests__/duplicate-detector.test.ts, lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Use word boundaries `\b` in regex when matching dimensions in the middle of product names
+  - Model name variations like "mf dna" vs "dna" have ~50% similarity - below the 0.8 threshold
+  - When brand or length is null, treat it as neutral (don't penalize but don't give full bonus)
+  - Structured comparison is more accurate than raw string similarity because it isolates components
+  - Test with score ranges instead of exact values since scoring involves multiple weighted components
+---
+
+## 2026-02-01 - US-006
+- Updated `findDuplicates()` to use structured comparison via `extractProductSignature()` and `compareSignatures()`
+- Enhanced `DuplicateMatch` interface with detailed match info:
+  - `brandMatch`, `modelSimilarity`, `lengthDifferenceInches`
+  - `brand1`/`brand2`, `model1`/`model2`, `length1`/`length2` for debugging
+- Created `logMatchDetails()` function for detailed console logging of matches
+- Added 8 integration tests validating findDuplicates with real product names
+- Added validation against all 10 DUPLICATE_TEST_CASES from duplicate-test-cases.ts
+- Identified 3 edge cases requiring future model synonym handling:
+  - "mayhem puddle jumper hp" vs "puddle jumper" (sub-brand + variant)
+  - "mf dna" vs "dna" (signature prefix)
+  - "disasym" vs "disasym fish" (category descriptor)
+- Files changed: lib/scraper/duplicate-detector.ts, lib/scraper/index.ts, lib/scraper/__tests__/duplicate-detector.test.ts, lib/scraper/__tests__/duplicate-test-cases.ts
+- **Learnings for future iterations:**
+  - Structured comparison works well for identical models with different naming conventions
+  - Edge cases with model name variations (sub-brands, signature prefixes, category descriptors) require special handling
+  - crossSourceOnly option works by comparing `product.source` from each signature
+  - DuplicateMatch now includes all extracted components for debugging and logging
+  - Integration tests with real product names from both sources validate end-to-end matching
+---
+
+## 2026-02-01 - US-007
+- Created `DuplicateMatcherConfig` interface for configurable matching behavior
+- Fields: `lengthToleranceInches`, `requireBrandMatch`, `modelSimilarityThreshold`, `minConfidenceToAutoLink`
+- Created `DEFAULT_MATCHER_CONFIG` with sensible defaults: 1" tolerance, 0.8 similarity, 0.7 confidence, requireBrandMatch=false
+- Updated `compareSignatures()` to accept optional config parameter for configurable thresholds
+- Updated `findDuplicates()` to accept `config` in options, merges with defaults using spread operator
+- Added comprehensive JSDoc documentation with examples for each config field
+- Exported `DuplicateMatcherConfig` type and `DEFAULT_MATCHER_CONFIG` from `lib/scraper/index.ts`
+- Files changed: lib/scraper/duplicate-detector.ts, lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Use `Partial<T>` for optional config overrides that merge with defaults
+  - Setting `requireBrandMatch: false` maintains backwards compatibility (unknown brands don't prevent matches)
+  - Config pattern: accept partial config in options, merge with `{ ...DEFAULT, ...config }` for effective config
+  - JSDoc `@example` blocks are valuable for showing usage patterns in type definitions
+  - When adding config options, ensure all existing behavior remains as default to avoid breaking changes
+---
+
+## 2026-02-01 - US-008
+- Created `scripts/run-duplicate-detection.ts` for running improved duplicate detection on all products
+- Script fetches all in-stock surfboards from Sanity using `sanityFetch<Surfboard[]>`
+- Runs `findDuplicates()` with structured comparison (brand + model + dimensions)
+- Uses `logMatchDetails()` to output detailed match information for each duplicate found
+- Checks matches against `minConfidenceToAutoLink` threshold (0.7) before calling `linkRelatedListings()`
+- Generates comprehensive summary report: total products, matches found, links created/failed
+- Groups products by source for initial statistics display
+- Run with: `npx tsx scripts/run-duplicate-detection.ts`
+- Files changed: scripts/run-duplicate-detection.ts (new)
+- **Learnings for future iterations:**
+  - Use `sanityFetch<Surfboard[]>` for type-safe queries that return multiple documents
+  - Create a Map for O(1) lookup when correlating IDs to display names during logging
+  - Use `process.exit(0)` for clean script termination after async operations
+  - DetectionSummary interface helps track multiple metrics (matches, links created, failed, below threshold)
+  - The `minConfidenceToAutoLink` config value acts as a second gate after the threshold check
+---
+
+## 2026-02-01 - US-009
+- Created `app/api/duplicates/link/route.ts` with POST handler for manual duplicate linking
+- Endpoint protected by `x-api-key` header validation against `SYNC_API_KEY` env var
+- Accepts JSON body with `productId1` and `productId2` fields
+- Validates both products exist by fetching from Sanity with `_id`, `name`, `source` fields
+- Validates products are from different sources (rejects same-source linking)
+- Uses existing `linkRelatedListings()` function from write-client.ts for bidirectional linking
+- Returns success response with linked product IDs and names
+- Error handling for: missing API key, invalid body, missing products, same source, link failure
+- Files changed: app/api/duplicates/link/route.ts (new)
+- **Learnings for future iterations:**
+  - Follow existing API route patterns: validateApiKey helper, NextRequest/NextResponse, consistent error format
+  - Fetch minimal product info (just _id, name, source) for validation rather than full documents
+  - Use Promise.all for parallel product fetches before validation
+  - Return linked product names in response for better UX in API consumers
+  - Source validation allows null sources (for backwards compatibility) - only rejects if both have same non-null source
+---
+
+## 2026-02-01 - US-010
+- Created `unlinkRelatedListings()` function in `lib/cms/write-client.ts`
+- Function fetches both products' relatedListings arrays and filters out references to each other
+- Updates both products' relatedListings bidirectionally using Sanity patch operations
+- Created `app/api/duplicates/unlink/route.ts` with POST handler for manual unlinking
+- Endpoint protected by `x-api-key` header validation against `SYNC_API_KEY` env var
+- Accepts JSON body with `productId1` and `productId2` fields
+- Validates both products exist before attempting unlink
+- Returns success response with unlinked product IDs and names
+- Exported `unlinkRelatedListings` from `lib/cms/index.ts`
+- Files changed: lib/cms/write-client.ts, lib/cms/index.ts, app/api/duplicates/unlink/route.ts (new)
+- **Learnings for future iterations:**
+  - Follow existing API route patterns for consistency (validateApiKey, ProductInfo interface, error handling)
+  - Unlink operation is simpler than link - just filter out the references, no need to check if already linked
+  - Use array.filter() to remove references by _ref field
+  - No need to validate different sources for unlink (unlike link, unlinking same-source products is valid if they were incorrectly linked)
+---

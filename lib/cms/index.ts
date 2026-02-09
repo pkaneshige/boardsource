@@ -4,6 +4,7 @@ export {
   writeClient,
   upsertSurfboard,
   linkRelatedListings,
+  unlinkRelatedListings,
   type UpsertResult,
 } from "./write-client";
 export { uploadImageFromUrl, uploadImagesFromUrls, type ImageUploadResult } from "./image-upload";
