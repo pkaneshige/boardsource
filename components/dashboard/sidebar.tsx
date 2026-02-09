@@ -77,6 +77,21 @@ const defaultNavItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    label: "Surfboards",
+    href: "/surfboards",
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 3c-1.5 0-3 .5-4 1.5C6.5 6 5.5 8.5 5 11c-.5 2.5-.5 5 0 7 .5 1.5 1.5 2.5 3 3 1 .5 2.5.5 4 .5s3 0 4-.5c1.5-.5 2.5-1.5 3-3 .5-2 .5-4.5 0-7-.5-2.5-1.5-5-3-6.5-1-1-2.5-1.5-4-1.5z"
+        />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 7v10M9 12h6" />
+      </svg>
+    ),
+  },
 ];
 
 function Sidebar({ className = "" }: SidebarProps) {

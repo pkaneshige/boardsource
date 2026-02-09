@@ -1,0 +1,512 @@
+## Codebase Patterns
+- Tailwind v4 uses CSS-based configuration with `@import "tailwindcss"` in globals.css, NOT tailwind.config.ts
+- Use `@theme inline` directive in CSS for Tailwind theme customization
+- PostCSS config uses `@tailwindcss/postcss` plugin for Tailwind v4
+- TypeScript strict mode is enabled in tsconfig.json
+- ESLint 9 flat config with Prettier: use `eslint-config-prettier` and `eslint-plugin-prettier` imports
+- Run `npm run lint -- --fix` to auto-fix formatting issues
+- Run `npm run typecheck` to check TypeScript (uses `tsc --noEmit`)
+- For fonts: use `next/font/google` and reference the variable in `@theme inline` in globals.css
+- Sanity client: use `sanityFetch<T>(query, params)` from `lib/cms` for type-safe GROQ queries
+- Use `@portabletext/react` with `PortableText` component to render Sanity block content
+- Page types: define in `types/index.ts`, import `PortableTextBlock` from `@portabletext/types` for content arrays
+- Sanity schemas: create in `lib/cms/schemas/`, use `defineType` and `defineField` from "sanity", export via `schemaTypes` array
+- Sanity Studio: accessible at `/studio`, uses `next-sanity/studio` NextStudio component with catch-all `[[...tool]]` route
+- Scraper module: use `lib/scraper` for all scraping-related code, import types/config from `@/lib/scraper`
+- Hawaiian South Shore scraping: use Shopify JSON API at `/collections/{handle}/products.json` (not HTML scraping)
+- Sanity write client: use `writeClient` from `lib/cms` with `SANITY_API_TOKEN` for mutations, requires `useCdn: false`
+- Sanity image URLs: use `urlFor(image).width(N).height(N).url()` from `lib/cms` for responsive images
+- Next.js Image: configure `remotePatterns` in next.config.ts for Sanity CDN (`cdn.sanity.io`)
+- URL-based filters: use client component with useSearchParams/useRouter for interactive controls, server component builds GROQ query from searchParams
+- Next.js 15 searchParams in pages are Promises: use `const params = await searchParams;`
+
+---
+
+## 2026-01-31 - US-001
+- Created Sanity schema for surfboard products in `lib/cms/schemas/surfboard.ts`
+- Registered surfboard schema in `lib/cms/schemas/index.ts` schemaTypes array
+- Added Surfboard TypeScript type to `types/index.ts` with supporting types (SanityImage, SurfboardCategory, StockStatus)
+- Files changed: lib/cms/schemas/surfboard.ts (new), lib/cms/schemas/index.ts, types/index.ts
+- **Learnings for future iterations:**
+  - Sanity schema fields follow pattern: defineField with name, title, type, optional validation/description
+  - For list options, use `options.list` array with {title, value} objects
+  - For string enums with default, use `initialValue` property
+  - Export schema from index.ts both in schemaTypes array AND as named export
+  - TypeScript types for Sanity documents use optional properties (?) for non-required fields
+  - SanityImage type structure: { _type: "image", asset: { _ref: string, _type: "reference" } }
+---
+
+## 2026-01-31 - US-002
+- Analyzed hawaiiansouthshore.com site structure - Shopify platform with JSON API
+- Created `lib/scraper/types.ts` with ScrapedProduct, ShopifyProduct, ShopifyVariant, ShopifyImage interfaces
+- Created `lib/scraper/config.ts` with base URL, rate limiting settings, URL builders, category inference
+- Created `lib/scraper/index.ts` barrel export
+- Files changed: lib/scraper/types.ts (new), lib/scraper/config.ts (new), lib/scraper/index.ts (new)
+- **Learnings for future iterations:**
+  - Hawaiian South Shore is a Shopify store with JSON API at `/collections/{handle}/products.json`
+  - Pagination uses `?page=N&limit=N` (max limit 250)
+  - Product handles are URL-friendly slugs (e.g., "firewire-machadocado-52-62-futures-helium-2-surfboard")
+  - Dimensions/volume often encoded in variant titles (e.g., "5'4 X 20 13/16 X 2 1/4 V28.8 - Grey")
+  - Vendor field contains brand/shaper name
+  - Tags array useful for category inference (shortboard, longboard, etc.)
+  - Use `@/types` import alias for shared types (SurfboardCategory, StockStatus)
+---
+
+## 2026-01-31 - US-003
+- Created `lib/scraper/list-scraper.ts` with `scrapeProductList` function
+- Fetches surfboard products from Shopify JSON API at `/collections/{handle}/products.json`
+- Handles pagination automatically with configurable page size (default 250)
+- Returns `ProductListItem[]` with url, name, price, handle for each product
+- Implements rate limiting with 1-2s random delay between page requests
+- Exported `scrapeProductList` and `ListScraperOptions` type from `lib/scraper/index.ts`
+- Files changed: lib/scraper/list-scraper.ts (new), lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Use `AbortSignal.timeout()` for request timeouts instead of custom timeout handling
+  - Shopify returns empty products array when page exceeds available products (no explicit pagination info)
+  - Destructure options with defaults in function signature for clean API: `{ collection = "surfboards", ... } = options`
+  - Use optional callback pattern (`onProgress?.(...)`) for progress updates
+  - Get minimum price from variants: `Math.min(...variants.map(v => parseFloat(v.price)))`
+---
+
+## 2026-01-31 - US-004
+- Created `lib/scraper/detail-scraper.ts` with `scrapeProductDetail` and `scrapeProductDetails` functions
+- Fetches individual product details from Shopify JSON API at `/products/{handle}.json`
+- Converts ShopifyProduct to ScrapedProduct with all fields populated
+- Extracts dimensions and volume from variant titles using regex patterns
+- Strips HTML from body_html to create plain text description
+- Handles errors gracefully (returns null on failure instead of throwing)
+- Supports both single product and batch scraping with rate limiting
+- Exported `scrapeProductDetail`, `scrapeProductDetails`, and `DetailScraperOptions` from `lib/scraper/index.ts`
+- Files changed: lib/scraper/detail-scraper.ts (new), lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Shopify single product API: `/products/{handle}.json` returns `{ product: ShopifyProduct }`
+  - Extract handle from URL with regex: `/\/products\/([^/?#]+)/`
+  - Use `stripHtml()` helper for body_html → plain text (replace tags, decode entities, collapse whitespace)
+  - Dimensions regex: `(\d+'?\d*(?:\s*[-\/]?\s*\d+)?["']?\s*[xX]\s*\d+(?:\s+\d+\/\d+)?\s*[xX]\s*\d+(?:\s+\d+\/\d+)?)`
+  - Volume often prefixed with "V" in variant titles (e.g., "V28.8")
+  - For batch operations, use `skipRateLimit: true` on inner calls and handle rate limiting in the outer loop
+---
+
+## 2026-01-31 - US-005
+- Created `lib/cms/write-client.ts` with authenticated Sanity client for write operations
+- Added `SANITY_API_TOKEN` environment variable to `.env.local.example`
+- Created `upsertSurfboard` function that creates or updates surfboard documents by sourceId
+- Function generates URL-friendly slug from product name using `generateSlug` helper
+- Function sets `lastScrapedAt` to current ISO timestamp on every upsert
+- Accepts optional `imageAssets` parameter for Sanity image references
+- Exported `writeClient`, `upsertSurfboard`, and `UpsertResult` type from `lib/cms/index.ts`
+- Files changed: lib/cms/write-client.ts (new), lib/cms/index.ts, .env.local.example
+- **Learnings for future iterations:**
+  - Sanity write client requires `useCdn: false` for mutations
+  - Use GROQ query to check if document exists before deciding create vs patch
+  - Sanity `client.patch(id).set(data).commit()` for updates, `client.create(data)` for new docs
+  - Define explicit TypeScript interface for document data to satisfy Sanity's type requirements
+  - Slug type in Sanity: `{ _type: "slug", current: string }`
+  - Image array items need `_key` property for Sanity arrays (generate from asset ref)
+  - Return structured `UpsertResult` with success, documentId, created flag, and optional error
+---
+
+## 2026-01-31 - US-006
+- Created `lib/cms/image-upload.ts` with `uploadImageFromUrl` and `uploadImagesFromUrls` functions
+- Downloads images from external URLs using fetch with 30s timeout
+- Uploads to Sanity asset storage using `writeClient.assets.upload("image", buffer, {...})`
+- Returns `ImageUploadResult` with asset reference on success or null on failure
+- Batch upload function processes images sequentially with 200ms delay between uploads
+- Exported functions and types from `lib/cms/index.ts`
+- Files changed: lib/cms/image-upload.ts (new), lib/cms/index.ts
+- **Learnings for future iterations:**
+  - Sanity asset upload uses `writeClient.assets.upload("image", buffer, { filename, contentType })`
+  - Convert fetch response to Buffer: `Buffer.from(await response.arrayBuffer())`
+  - Asset reference format: `{ _type: "reference", _ref: asset._id }`
+  - Use `AbortSignal.timeout(30000)` for fetch timeout
+  - Extract filename from URL path for descriptive asset names
+  - Add small delay (200ms) between sequential uploads to avoid rate limiting
+- Next.js API routes: create in `app/api/{endpoint}/route.ts`, use `NextRequest`/`NextResponse` from `next/server`
+
+---
+
+## 2026-01-31 - US-007
+- Created `lib/scraper/sync.ts` with `syncAllProducts` function
+- Orchestrates complete scrape and sync process in three phases:
+  1. Scrapes product list from collection using list scraper
+  2. Scrapes full details for each product, uploads images, and upserts to Sanity
+  3. Marks products as out_of_stock if no longer found in the scrape
+- Returns `SyncResult` with created, updated, failed counts and error details
+- Exported `syncAllProducts` and `SyncOptions` type from `lib/scraper/index.ts`
+- Files changed: lib/scraper/sync.ts (new), lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Use `skipRateLimit: true` on inner detail scraper calls and handle rate limiting in the sync loop
+  - Track scraped sourceIds in a Set for efficient O(1) lookup when comparing with Sanity documents
+  - Query Sanity for `stockStatus != "out_of_stock"` to avoid re-marking already out_of_stock products
+  - Use optional onProgress callback with (phase, current, total, message) signature for external monitoring
+  - Return structured SyncResult with errors array containing { handle, error } for debugging
+---
+
+## 2026-01-31 - US-008
+- Created `app/api/sync/route.ts` with POST handler for manual sync trigger
+- Endpoint protected by `x-api-key` header validation against `SYNC_API_KEY` env var
+- Accepts optional JSON body with sync options: collection, maxProducts, uploadImages, markMissingAsOutOfStock
+- Returns JSON response with success status, summary (created/updated/failed counts), and errors array
+- Added `SYNC_API_KEY` to `.env.local.example` with documentation
+- Files changed: app/api/sync/route.ts (new), .env.local.example
+- **Learnings for future iterations:**
+  - Next.js App Router API routes export named HTTP method handlers (POST, GET, etc.)
+  - Use `NextRequest` and `NextResponse` from `next/server` for typed request/response
+  - Access headers via `request.headers.get("header-name")`
+  - Return JSON errors with appropriate HTTP status codes using `NextResponse.json(body, { status })`
+  - Use try/catch around `request.json()` to handle missing or invalid request body gracefully
+---
+
+## 2026-01-31 - US-009
+- Created `app/surfboards/page.tsx` with surfboards listing page
+- Fetches surfboards from Sanity using GROQ query with type-safe `sanityFetch<SurfboardListItem[]>`
+- Responsive grid layout: 1 col mobile, 2 cols sm, 3 cols lg, 4 cols xl
+- ProductCard component displays primary image, name, shaper, and formatted price
+- Cards link to `/surfboards/[slug]` detail pages
+- Created `app/surfboards/loading.tsx` with skeleton grid for loading state
+- Empty state displays message when no products available
+- Created `lib/cms/image-url.ts` with `urlFor()` helper using `@sanity/image-url`
+- Updated `next.config.ts` with Sanity CDN remote pattern for Next.js Image
+- Files changed: app/surfboards/page.tsx (new), app/surfboards/loading.tsx (new), lib/cms/image-url.ts (new), lib/cms/index.ts, next.config.ts
+- **Learnings for future iterations:**
+  - Use `urlFor(image).width(N).height(N).url()` to generate optimized Sanity image URLs
+  - Import `SanityImageSource` directly from `@sanity/image-url` (not the nested types path)
+  - For product grids, use `aspect-[4/3]` with `object-cover` for consistent card heights
+  - Product cards: use `group` class on Link with `group-hover:` modifiers for hover effects
+  - Format price with `Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })`
+  - Loading skeletons: match the page structure with skeleton components for smooth transitions
+---
+
+## 2026-01-31 - US-010
+- Created `app/surfboards/[slug]/page.tsx` with product detail page
+- Fetches product by slug using GROQ query with `$slug` parameter
+- ImageGallery component displays main image large with up to 4 thumbnail images below
+- Shows all product details: name, price (with "Price TBD" fallback), dimensions, volume, shaper, category, description
+- Prominent "Buy at Hawaiian South Shore" button with external link icon, opens sourceUrl in new tab
+- Uses `notFound()` from `next/navigation` to return 404 for non-existent products
+- Created `app/surfboards/[slug]/loading.tsx` with skeleton structure matching the detail page layout
+- Breadcrumb navigation at top: Surfboards / Product Name
+- Out of stock indicator shown when stockStatus === "out_of_stock"
+- Files changed: app/surfboards/[slug]/page.tsx (new), app/surfboards/[slug]/loading.tsx (new)
+- **Learnings for future iterations:**
+  - Next.js 15 dynamic params are Promises: use `const { slug } = await params;`
+  - GROQ query with param: `*[_type == "surfboard" && slug.current == $slug][0]` and pass `{ slug }` as second argument
+  - Use `notFound()` import from `next/navigation` (not `next/router`) for App Router
+  - For image galleries, display first image large with `aspect-square`, remaining as thumbnails in grid
+  - Access nested Surfboard type fields with `Surfboard["images"]` for type reuse
+  - Definition lists (`<dt>/<dd>`) work well for displaying specs in cards
+---
+
+## 2026-01-31 - US-011
+- Added filtering controls to surfboards listing page
+- Created `app/surfboards/filter-controls.tsx` client component with:
+  - Category dropdown (All, Shortboard, Longboard, Funboard, Fish, Gun, Mid-Length, Other)
+  - Price range inputs (min/max with $ prefix)
+  - Shaper/brand dropdown dynamically populated from Sanity data
+  - Clear Filters button (shown only when filters active)
+- Updated `app/surfboards/page.tsx` to:
+  - Accept searchParams Promise and extract filter values
+  - Build dynamic GROQ query with filter conditions
+  - Fetch available shapers from Sanity for dropdown population
+  - Display product count: "Showing X of Y boards" with "(filtered)" indicator
+- All filters persist in URL query params (e.g., ?category=shortboard&minPrice=500&shaper=Firewire)
+- Files changed: app/surfboards/page.tsx, app/surfboards/filter-controls.tsx (new)
+- **Learnings for future iterations:**
+  - Next.js 15 searchParams are Promises: use `const params = await searchParams;`
+  - Create client components for interactive filters that need useRouter/useSearchParams hooks
+  - Use URLSearchParams to build query strings, delete params for "all" or empty values
+  - For dynamic GROQ queries, build conditions array and join with " && "
+  - Get unique values with `[...new Set(array)]` pattern
+  - Use Promise.all() to parallelize multiple Sanity queries (filtered data, shapers list, total count)
+---
+
+## 2026-01-31 - US-012
+- Added search functionality to surfboards listing page
+- Created `app/surfboards/search-input.tsx` client component with:
+  - Search input with search icon
+  - 300ms debounce using useRef for timer management
+  - Syncs with URL search params via useRouter/useSearchParams
+- Updated `app/surfboards/page.tsx` to:
+  - Add `q` parameter to SearchParams interface
+  - Update GROQ query to search name, shaper, and description fields using `match` operator
+  - Display search input in page header (right-aligned on desktop)
+  - Update EmptyState to show "No results found" message with search term
+  - Include search term in hasActiveFilters check
+- Search term persists in URL query param (?q=searchterm)
+- Files changed: app/surfboards/page.tsx, app/surfboards/search-input.tsx (new)
+- **Learnings for future iterations:**
+  - GROQ `match` operator with wildcards: `field match "*term*"` for contains-style search
+  - Escape special characters (especially quotes) in search terms before including in GROQ query
+  - Use useRef for debounce timers instead of useState to avoid unnecessary re-renders
+  - Cleanup debounce timer in useEffect return function to prevent memory leaks
+  - Sync controlled input value with URL params using useEffect to handle external changes (e.g., clear filters)
+---
+
+## 2026-01-31 - US-013
+- Added sorting options to surfboards listing page
+- Created `app/surfboards/sort-select.tsx` client component with:
+  - Sort dropdown with 4 options: Newest, Price (Low to High), Price (High to Low), Name (A-Z)
+  - Updates URL query param on change using useRouter/useSearchParams
+  - Default sort is "newest" (omitted from URL)
+- Updated `app/surfboards/page.tsx` to:
+  - Add `sort` parameter to SearchParams interface (typed as SortOption)
+  - Add `getOrderClause()` helper that maps sort options to GROQ order clauses
+  - Pass sort to buildGroqQuery which includes dynamic order clause
+  - Render SortSelect component in results bar (between count and grid)
+- Sort options: newest (lastScrapedAt desc), price-asc, price-desc, name-asc (using lower() for case-insensitive)
+- Sort persists in URL as ?sort=price-asc (newest is default and omitted)
+- Works in combination with all existing filters and search
+- Files changed: app/surfboards/page.tsx, app/surfboards/sort-select.tsx (new)
+- **Learnings for future iterations:**
+  - GROQ order clause with lower() for case-insensitive sort: `order(lower(name) asc)`
+  - Keep default value out of URL to keep URLs clean - only set param for non-default values
+  - Place sort dropdown near result count for discoverability
+  - Export both the component and the type (SortOption) for type-safe usage in parent components
+---
+
+## 2026-01-31 - US-014
+- Added Surfboards nav item to dashboard sidebar navigation
+- Created custom surfboard-shaped icon (SVG: rounded board outline with stringer/center cross)
+- Link points to /surfboards and uses existing `isActive` logic with `startsWith` pattern matching
+- Active state correctly highlights when on /surfboards or /surfboards/* pages
+- Files changed: components/dashboard/sidebar.tsx
+- **Learnings for future iterations:**
+  - Sidebar nav items follow NavItem interface: { label, href, icon (JSX SVG) }
+  - isActive function uses startsWith for all non-dashboard routes, enabling automatic wildcard matching
+  - Prettier auto-formats multi-line SVG paths to single line if they're short enough
+  - Custom icons: use simple path commands with strokeLinecap/strokeLinejoin="round" to match existing style
+---
+
+## 2026-01-31 - US-015
+- Added source tracking to surfboard schema for multi-vendor support
+- Added `source` field (dropdown: 'hawaiian-south-shore' | 'surfgarage') to Sanity surfboard schema
+- Added `sourceName` field for display purposes (e.g., 'Hawaiian South Shore', 'Surf Garage')
+- Created `SurfboardSource` type in types/index.ts
+- Updated `Surfboard` interface with optional source and sourceName fields
+- Updated `ScrapedProduct` interface with required source and sourceName fields
+- Updated `SurfboardDocument` and `upsertSurfboard` function to persist source fields
+- Updated `toScrapedProduct` in detail-scraper to set source='hawaiian-south-shore' and sourceName='Hawaiian South Shore'
+- Files changed: lib/cms/schemas/surfboard.ts, types/index.ts, lib/scraper/types.ts, lib/cms/write-client.ts, lib/scraper/detail-scraper.ts
+- **Learnings for future iterations:**
+  - For multi-source support, add both machine-readable identifier (source) and human-readable display name (sourceName)
+  - Keep source fields as optional in Surfboard interface (for backwards compatibility with existing data)
+  - Make source fields required in ScrapedProduct (all new scrapes must specify source)
+  - Set source values in the toScrapedProduct conversion function, not in the sync orchestrator
+---
+
+## 2026-01-31 - US-016
+- Created `lib/scraper/squarespace-types.ts` with TypeScript interfaces for Squarespace JSON API
+- Defined `SquarespaceProduct` interface with id, title, urlId, excerpt, body, variants, items (images), tags, timestamps
+- Defined `SquarespaceVariant` interface with id, sku, price (in cents), stock, unlimited, attributes
+- Defined `SquarespaceImage` interface with id, assetUrl, originalSize, title, format
+- Defined `SquarespaceCollection` interface for collection metadata
+- Defined `SquarespaceCollectionResponse` for collection page responses with items array and pagination
+- Defined `SquarespaceProductResponse` for single product page responses
+- Exported all types from `lib/scraper/index.ts`
+- Files changed: lib/scraper/squarespace-types.ts (new), lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Squarespace JSON API: append `?format=json` to any page URL to get JSON response
+  - Collection pages return `{ collection, items }` where items is the product array
+  - Single product pages return `{ item, collection }` structure
+  - Squarespace prices are in cents (divide by 100 for dollars)
+  - Product images are in the `items` array (not `images`), each with `assetUrl`
+  - Product URL identifier is `urlId` (used in URL paths, not `id`)
+---
+
+## 2026-01-31 - US-017
+- Created `lib/scraper/surfgarage/config.ts` with Surfgarage scraper configuration
+- Defined `SURFGARAGE_BASE_URL` constant: https://surfgarage.squarespace.com
+- Defined `SURFGARAGE_CATEGORIES` array: longboards, shortboards, alternativeboards, guns, vintageboards
+- Created `CATEGORY_MAPPING` to map Surfgarage categories to SurfboardCategory enum (alternativeboards/vintageboards -> 'other')
+- Configured rate limiting: 2-3 second delay between requests via `surfgarageRateLimit` config
+- Created URL builder functions in `surfgarageUrls` object: getCategoryUrl, getProductUrl, getProductPageUrl
+- Added helper functions: mapCategory, getSurfgarageRandomDelay, sleep
+- Exported all configuration from `lib/scraper/index.ts`
+- Files changed: lib/scraper/surfgarage/config.ts (new), lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Organize vendor-specific scrapers in subdirectories (e.g., lib/scraper/surfgarage/)
+  - Use consistent naming patterns: VENDOR_BASE_URL, VENDOR_SOURCE, VENDOR_SOURCE_NAME
+  - Export typed SurfgarageCategory from const array using: `type SurfgarageCategory = (typeof SURFGARAGE_CATEGORIES)[number]`
+  - Include getProductPageUrl for generating human-readable sourceUrl (without ?format=json)
+---
+
+## 2026-01-31 - US-018
+- Created `lib/scraper/surfgarage/list-scraper.ts` with `scrapeSurfgarageList` function
+- Fetches products from Squarespace JSON API at `/<category>?format=json` endpoints
+- Converts Squarespace prices from cents to dollars (divide by 100)
+- Returns `ProductListItem[]` with url, name, price, handle (urlId from Squarespace)
+- Supports single category or all categories scraping via options.category parameter
+- Implements 2-3s random delay between category requests for rate limiting
+- Handles errors gracefully by logging and continuing with next category
+- Exported `scrapeSurfgarageList` and `SurfgarageListScraperOptions` from `lib/scraper/index.ts`
+- Files changed: lib/scraper/surfgarage/list-scraper.ts (new), lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Squarespace collection API returns `{ collection, items }` - products are in `items` array
+  - Import types from `@/lib/scraper` (e.g., ProductListItem) to avoid circular dependencies
+  - Include category parameter in ProductListItem URL generation for Squarespace (category is part of URL path)
+  - Follow same pattern as list-scraper.ts for Hawaiian South Shore but adapted for Squarespace API
+---
+
+## 2026-01-31 - US-019
+- Created `lib/scraper/surfgarage/detail-scraper.ts` with Surfgarage product detail scraper
+- `scrapeSurfgarageDetail` function fetches single product from `/<category>/<urlId>?format=json`
+- `scrapeSurfgarageDetails` function batch scrapes multiple products with rate limiting
+- Converts Squarespace `SquarespaceProductResponse` to `ScrapedProduct` format
+- Extracts prices from variants (converts cents to dollars), images from items array
+- Generates unique sourceId with 'surfgarage-' prefix to avoid collisions with other sources
+- Builds sourceUrl using `surfgarageUrls.getProductPageUrl` (human-readable, no ?format=json)
+- Extracts dimensions and volume from body/excerpt using regex patterns
+- Extracts vendor/shaper name from product title (splits on " - " or takes first words)
+- Sets source='surfgarage' and sourceName='Surf Garage' for proper attribution
+- Returns null on failure with error logging (graceful error handling)
+- Exported functions and types from `lib/scraper/index.ts`
+- Files changed: lib/scraper/surfgarage/detail-scraper.ts (new), lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Squarespace single product API: `/<category>/<urlId>?format=json` returns `{ item, collection }`
+  - Product images are in `item.items` array (not `images`), each with `assetUrl`
+  - Use `SurfgarageProductInfo` interface with category and urlId for type-safe product references
+  - Prefix sourceId with vendor name (e.g., 'surfgarage-') to ensure uniqueness across sources
+  - Set shopifyId to 0 for non-Shopify products (ScrapedProduct interface requires the field)
+  - Squarespace variant availability: check `unlimited` or `stock > 0`
+---
+
+## 2026-01-31 - US-020
+- Created `lib/scraper/surfgarage/sync.ts` with `syncSurfgarageProducts` function
+- Orchestrates complete Surfgarage scrape and sync process in three phases:
+  1. Scrapes product list from specified or all categories using `scrapeSurfgarageList`
+  2. Scrapes full details for each product, uploads images to Sanity, upserts with source='surfgarage' and sourceName='Surf Garage'
+  3. Marks missing Surfgarage products as out_of_stock (only affects surfgarage source via GROQ filter)
+- Returns `SyncResult` with created, updated, failed counts and error details
+- Supports optional category filter, maxProducts limit, uploadImages toggle, and markMissingAsOutOfStock toggle
+- Includes `extractCategoryFromUrl` helper to parse category from ProductListItem URLs
+- Exported `syncSurfgarageProducts` and `SurfgarageSyncOptions` type from `lib/scraper/index.ts`
+- Files changed: lib/scraper/surfgarage/sync.ts (new), lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - For multi-source sync, filter out_of_stock marking by source field to avoid affecting other vendors
+  - Use GROQ parameterized query: `source == $source` with `{ source: SURFGARAGE_SOURCE }` for source filtering
+  - Extract category from URL using simple string matching against SURFGARAGE_CATEGORIES array
+  - Reuse `syncProduct` helper pattern from Hawaiian South Shore sync for image upload and upsert
+  - Follow same three-phase pattern (list, sync, cleanup) for consistency across vendor syncs
+---
+
+## 2026-01-31 - US-021
+- Created `app/api/sync/surfgarage/route.ts` with POST handler for Surfgarage sync
+- Endpoint protected by `x-api-key` header validation against `SYNC_API_KEY` env var
+- Accepts optional JSON body with sync options: category, maxProducts, uploadImages, markMissingAsOutOfStock
+- Category filter validated against SURFGARAGE_CATEGORIES, returns 400 with allowed values if invalid
+- Returns JSON response with success status, summary (created/updated/failed counts), and errors array
+- Files changed: app/api/sync/surfgarage/route.ts (new)
+- **Learnings for future iterations:**
+  - Use type guard function (`isValidCategory`) for runtime category validation
+  - Follow same pattern as existing /api/sync endpoint for consistency
+  - Provide helpful error messages for invalid enum values (list valid options)
+  - Use const assertion for options object when conditionally adding properties
+---
+
+## 2026-01-31 - US-022
+- Added source indicator badge to product cards on surfboards listing page
+- Updated `SurfboardListItem` interface to include optional `sourceName` field
+- Updated GROQ query in `buildGroqQuery` to fetch `sourceName` from Sanity
+- Updated `ProductCard` component to display sourceName as a subtle badge next to price
+- Badge uses muted styling: 10px text, gray background, rounded corners, dark mode support
+- Missing sourceName is handled gracefully (badge not rendered when undefined)
+- Files changed: app/surfboards/page.tsx
+- **Learnings for future iterations:**
+  - For subtle badges, use very small text (text-[10px]) with muted colors and light background
+  - Use flexbox `justify-between` to position price and badge on opposite ends
+  - Add `truncate` class to badges to prevent long source names from breaking layout
+  - Always include dark mode variants for UI elements (dark:bg-gray-800 dark:text-gray-400)
+---
+
+## 2026-01-31 - US-023
+- Updated product detail page to support multi-source vendors
+- Added `source` and `sourceName` fields to GROQ query (SURFBOARD_BY_SLUG_QUERY)
+- Added `source` and `sourceName` fields to `SurfboardDetailItem` interface
+- Display "Available at {sourceName}" in product info section below shaper name (subtle gray text)
+- Updated buy button to dynamically show "Buy at {sourceName}" or fallback to "Buy Now" when sourceName is missing
+- Files changed: app/surfboards/[slug]/page.tsx
+- **Learnings for future iterations:**
+  - Use ternary operator for conditional button text: `sourceName ? \`Buy at ${sourceName}\` : "Buy Now"`
+  - For source attribution text, use smaller/muted styling (text-sm text-gray-500) below primary info
+  - Always include fallback text for optional fields in user-facing UI to handle legacy/missing data
+---
+
+
+## 2026-01-31 - US-024
+- Added `relatedListings` field to Sanity surfboard schema in `lib/cms/schemas/surfboard.ts`
+- Field is an array of references to other surfboard documents (for duplicate listings from other vendors)
+- Created `SurfboardReference` interface in `types/index.ts` with `_type: "reference"` and `_ref: string`
+- Added optional `relatedListings?: SurfboardReference[]` property to `Surfboard` interface
+- Files changed: lib/cms/schemas/surfboard.ts, types/index.ts
+- **Learnings for future iterations:**
+  - Sanity reference arrays use `type: "reference"` with `to: [{ type: "documentType" }]` syntax
+  - Reference type structure: `{ _type: "reference", _ref: string }` where _ref is the document ID
+  - For self-referencing schemas, use the same document type name in the `to` array
+  - Keep reference types separate from the main document interface for reusability
+---
+
+## 2026-01-31 - US-025
+- Created `lib/scraper/duplicate-detector.ts` with duplicate detection functionality
+- Implemented `normalizeName` function: converts to lowercase, removes special chars, collapses whitespace
+- Implemented `createComparisonKey` function: combines shaper + model name for matching (avoids duplication if shaper already in name)
+- Implemented `calculateSimilarity` using Levenshtein distance normalized by max string length (returns 0-1 score)
+- Implemented `findDuplicates` function: compares all products pairwise, returns matches above threshold
+- Default threshold is 0.85, with `crossSourceOnly=true` to only match products from different vendors
+- Returns `DuplicateMatch[]` with productId, matchedProductId, and similarity score
+- Exported all functions and types from `lib/scraper/index.ts`
+- Files changed: lib/scraper/duplicate-detector.ts (new), lib/scraper/index.ts
+- **Learnings for future iterations:**
+  - Levenshtein distance is O(n*m) where n and m are string lengths - may be slow for large catalogs
+  - Normalize strings before comparison: lowercase, remove special chars, collapse whitespace
+  - Combine shaper (brand) with product name for better matching, but avoid duplication if already included
+  - Use `crossSourceOnly` flag to only match across different vendors (same board from different sources)
+  - Pre-compute comparison keys for all products before pairwise comparison for efficiency
+---
+
+## 2026-01-31 - US-026
+- Updated Surfgarage sync to run duplicate detection after upserting products (Phase 4)
+- Created `linkRelatedListings` function in `lib/cms/write-client.ts` to update relatedListings bidirectionally
+- Sync now fetches all in-stock surfboards from Sanity and runs `findDuplicates` with `crossSourceOnly: true`
+- For each match, updates both products' relatedListings arrays to reference each other
+- Includes duplicate check to avoid re-linking already linked products
+- Logs detailed duplicate matches with similarity percentages for monitoring
+- Exported `linkRelatedListings` from `lib/cms/index.ts`
+- Files changed: lib/cms/write-client.ts, lib/cms/index.ts, lib/scraper/surfgarage/sync.ts
+- **Learnings for future iterations:**
+  - Use `_key` property when adding items to Sanity arrays (generated from document ID)
+  - Check if products are already linked before updating to avoid duplicates in arrays
+  - Fetch both products in parallel with Promise.all for efficiency before updating
+  - Phase 4 runs even if previous phases had failures to ensure duplicates are still detected
+  - Duplicate detection fetches only non-out_of_stock products to avoid linking unavailable items
+---
+
+## 2026-01-31 - US-027
+- Added 'Also available at' section to product detail page for cross-vendor comparison
+- Updated GROQ query with `relatedListings[]->{_id, name, price, sourceName, "slug": slug.current}`
+- Added `RelatedListing` interface and updated `SurfboardDetailItem` with optional `relatedListings` array
+- Section only renders when `relatedListings` array has items (conditional rendering)
+- Each listing displays sourceName and price, links to `/surfboards/{slug}` for that product
+- Styled as secondary card below buy button with subtle background, borders, and hover effects
+- Files changed: app/surfboards/[slug]/page.tsx
+- **Learnings for future iterations:**
+  - Use GROQ dereference operator `->` to fetch fields from referenced documents: `relatedListings[]->{fields}`
+  - Use computed field syntax for nested paths: `"slug": slug.current` to flatten slug object
+  - Conditional rendering with `array && array.length > 0` ensures section only shows when data exists
+  - For secondary/alternative options UI, use subtle styling (bg-gray-50, smaller text) to distinguish from primary CTA
+---
+
+## 2026-01-31 - US-028
+- Added Source filter dropdown to surfboards listing page FilterControls component
+- Added `source` parameter to SearchParams interface and currentFilters
+- Created SOURCE_OPTIONS constant with All Sources, Hawaiian South Shore, and Surf Garage
+- Updated `buildGroqQuery` to include source filter condition when param present
+- Updated `hasActiveFilters` check to include source filter
+- Filter persists in URL as ?source=hawaiian-south-shore or ?source=surfgarage
+- Works in combination with all existing filters (category, price, shaper, search, sort)
+- Files changed: app/surfboards/page.tsx, app/surfboards/filter-controls.tsx
+- **Learnings for future iterations:**
+  - Follow existing FilterControls pattern: add prop to interface, add to currentFilters object, add to hasActiveFilters check
+  - Use consistent option format with { value, label } for dropdown options across filters
+  - Source values match schema values exactly (e.g., 'hawaiian-south-shore', 'surfgarage')
+  - GROQ source filter uses exact match: `source == "${params.source}"`
+---
