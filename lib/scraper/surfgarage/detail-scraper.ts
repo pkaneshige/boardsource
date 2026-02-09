@@ -17,6 +17,7 @@ import {
 } from "./config";
 import type { SurfgarageCategory } from "./config";
 import type { SquarespaceProductResponse, SquarespaceProduct, ScrapedProduct } from "@/lib/scraper";
+import { parseDimensionString, parseVolumeString } from "@/lib/utils/parse-dimensions";
 
 /**
  * Options for the Surfgarage detail scraper
@@ -214,6 +215,8 @@ function toScrapedProduct(
     tags: squarespaceProduct.tags || [],
     dimensions,
     volume,
+    ...(dimensions ? (() => { const p = parseDimensionString(dimensions); return p ? { lengthFeet: p.lengthFeet, lengthInches: p.lengthInches, widthInches: p.widthInches ?? undefined, thicknessInches: p.thicknessInches ?? undefined } : {}; })() : {}),
+    ...(volume ? (() => { const v = parseVolumeString(volume); return v != null ? { volumeLiters: v } : {}; })() : {}),
     sourceUrl,
     sourceId,
     available,

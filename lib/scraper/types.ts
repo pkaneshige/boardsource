@@ -61,6 +61,21 @@ export interface ScrapedProduct {
   /** Volume in liters parsed from title/description (e.g., "28.8") */
   volume?: string;
 
+  /** Parsed length - feet component */
+  lengthFeet?: number;
+
+  /** Parsed length - inches component */
+  lengthInches?: number;
+
+  /** Parsed width in inches */
+  widthInches?: number;
+
+  /** Parsed thickness in inches */
+  thicknessInches?: number;
+
+  /** Parsed volume in liters */
+  volumeLiters?: number;
+
   /** Full source URL to the product page */
   sourceUrl: string;
 

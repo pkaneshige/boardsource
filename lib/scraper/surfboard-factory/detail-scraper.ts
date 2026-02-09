@@ -22,6 +22,7 @@ import {
 } from "./config";
 import type { WooCommerceProduct, WooCommerceAttribute } from "./types";
 import type { ScrapedProduct } from "@/lib/scraper";
+import { parseDimensionString, parseVolumeString } from "@/lib/utils/parse-dimensions";
 
 /**
  * Options for the Surfboard Factory detail scraper
@@ -248,6 +249,8 @@ function toScrapedProduct(product: WooCommerceProduct): ScrapedProduct {
     tags,
     dimensions,
     volume,
+    ...(dimensions ? (() => { const p = parseDimensionString(dimensions); return p ? { lengthFeet: p.lengthFeet, lengthInches: p.lengthInches, widthInches: p.widthInches ?? undefined, thicknessInches: p.thicknessInches ?? undefined } : {}; })() : {}),
+    ...(volume ? (() => { const v = parseVolumeString(volume); return v != null ? { volumeLiters: v } : {}; })() : {}),
     sourceUrl: product.permalink,
     sourceId,
     available,

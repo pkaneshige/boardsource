@@ -52,6 +52,11 @@ interface SurfboardDocument {
   price: number;
   dimensions?: string;
   volume?: string;
+  lengthFeet?: number;
+  lengthInches?: number;
+  widthInches?: number;
+  thicknessInches?: number;
+  volumeLiters?: number;
   shaper: string;
   description: string;
   sourceUrl: string;
@@ -217,6 +222,11 @@ export async function upsertSurfboard(
       price: product.price,
       dimensions: product.dimensions || undefined,
       volume: product.volume || undefined,
+      lengthFeet: product.lengthFeet,
+      lengthInches: product.lengthInches,
+      widthInches: product.widthInches,
+      thicknessInches: product.thicknessInches,
+      volumeLiters: product.volumeLiters,
       shaper: product.vendor,
       description: product.description,
       sourceUrl: product.sourceUrl,

@@ -37,6 +37,14 @@ interface SearchParams {
   q?: string;
   sort?: SortOption;
   bestPrice?: string;
+  minLength?: string;
+  maxLength?: string;
+  minWidth?: string;
+  maxWidth?: string;
+  minThickness?: string;
+  maxThickness?: string;
+  minVolume?: string;
+  maxVolume?: string;
 }
 
 function getOrderClause(sort: SortOption | undefined): string {
@@ -80,6 +88,56 @@ function buildGroqQuery(params: SearchParams): string {
 
   if (params.source && params.source !== "all") {
     conditions.push(`source == "${params.source}"`);
+  }
+
+  // Dimension filters
+  if (params.minLength) {
+    const min = parseFloat(params.minLength);
+    if (!isNaN(min)) {
+      conditions.push(`defined(lengthFeet) && (lengthFeet * 12 + lengthInches) >= ${min}`);
+    }
+  }
+  if (params.maxLength) {
+    const max = parseFloat(params.maxLength);
+    if (!isNaN(max)) {
+      conditions.push(`defined(lengthFeet) && (lengthFeet * 12 + lengthInches) <= ${max}`);
+    }
+  }
+  if (params.minWidth) {
+    const min = parseFloat(params.minWidth);
+    if (!isNaN(min)) {
+      conditions.push(`defined(widthInches) && widthInches >= ${min}`);
+    }
+  }
+  if (params.maxWidth) {
+    const max = parseFloat(params.maxWidth);
+    if (!isNaN(max)) {
+      conditions.push(`defined(widthInches) && widthInches <= ${max}`);
+    }
+  }
+  if (params.minThickness) {
+    const min = parseFloat(params.minThickness);
+    if (!isNaN(min)) {
+      conditions.push(`defined(thicknessInches) && thicknessInches >= ${min}`);
+    }
+  }
+  if (params.maxThickness) {
+    const max = parseFloat(params.maxThickness);
+    if (!isNaN(max)) {
+      conditions.push(`defined(thicknessInches) && thicknessInches <= ${max}`);
+    }
+  }
+  if (params.minVolume) {
+    const min = parseFloat(params.minVolume);
+    if (!isNaN(min)) {
+      conditions.push(`defined(volumeLiters) && volumeLiters >= ${min}`);
+    }
+  }
+  if (params.maxVolume) {
+    const max = parseFloat(params.maxVolume);
+    if (!isNaN(max)) {
+      conditions.push(`defined(volumeLiters) && volumeLiters <= ${max}`);
+    }
   }
 
   // Search across name, shaper, and description fields
@@ -284,7 +342,15 @@ export default async function SurfboardsPage({
     (params.shaper && params.shaper !== "all") ||
     (params.source && params.source !== "all") ||
     params.q ||
-    params.bestPrice === "true"
+    params.bestPrice === "true" ||
+    params.minLength ||
+    params.maxLength ||
+    params.minWidth ||
+    params.maxWidth ||
+    params.minThickness ||
+    params.maxThickness ||
+    params.minVolume ||
+    params.maxVolume
   );
 
   return (
@@ -312,6 +378,14 @@ export default async function SurfboardsPage({
           shaper: params.shaper || "all",
           source: params.source || "all",
           bestPrice: params.bestPrice || "",
+          minLength: params.minLength || "",
+          maxLength: params.maxLength || "",
+          minWidth: params.minWidth || "",
+          maxWidth: params.maxWidth || "",
+          minThickness: params.minThickness || "",
+          maxThickness: params.maxThickness || "",
+          minVolume: params.minVolume || "",
+          maxVolume: params.maxVolume || "",
         }}
       />
 

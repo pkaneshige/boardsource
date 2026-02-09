@@ -7,6 +7,7 @@
 
 import { scraperConfig, urls, inferCategory, parsePatterns, sleep, getRandomDelay } from "./config";
 import type { ScrapedProduct, ShopifyProduct } from "./types";
+import { parseDimensionString, parseVolumeString } from "@/lib/utils/parse-dimensions";
 
 /**
  * Shopify single product JSON API response
@@ -165,6 +166,8 @@ function toScrapedProduct(shopifyProduct: ShopifyProduct): ScrapedProduct {
     tags,
     dimensions,
     volume,
+    ...(dimensions ? (() => { const p = parseDimensionString(dimensions); return p ? { lengthFeet: p.lengthFeet, lengthInches: p.lengthInches, widthInches: p.widthInches ?? undefined, thicknessInches: p.thicknessInches ?? undefined } : {}; })() : {}),
+    ...(volume ? (() => { const v = parseVolumeString(volume); return v != null ? { volumeLiters: v } : {}; })() : {}),
     sourceUrl: urls.productPage(shopifyProduct.handle),
     sourceId: String(shopifyProduct.id),
     available,

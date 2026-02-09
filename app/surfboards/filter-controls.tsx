@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 interface FilterControlsProps {
   categories: Array<{ value: string; label: string }>;
@@ -14,6 +14,14 @@ interface FilterControlsProps {
     shaper: string;
     source: string;
     bestPrice: string;
+    minLength: string;
+    maxLength: string;
+    minWidth: string;
+    maxWidth: string;
+    minThickness: string;
+    maxThickness: string;
+    minVolume: string;
+    maxVolume: string;
   };
 }
 
@@ -56,13 +64,34 @@ export function FilterControls({
     router.push(pathname);
   }, [pathname, router]);
 
+  const [showDimensions, setShowDimensions] = useState(
+    !!(
+      currentFilters.minLength ||
+      currentFilters.maxLength ||
+      currentFilters.minWidth ||
+      currentFilters.maxWidth ||
+      currentFilters.minThickness ||
+      currentFilters.maxThickness ||
+      currentFilters.minVolume ||
+      currentFilters.maxVolume
+    )
+  );
+
   const hasActiveFilters =
     (currentFilters.category && currentFilters.category !== "all") ||
     currentFilters.minPrice ||
     currentFilters.maxPrice ||
     (currentFilters.shaper && currentFilters.shaper !== "all") ||
     (currentFilters.source && currentFilters.source !== "all") ||
-    currentFilters.bestPrice === "true";
+    currentFilters.bestPrice === "true" ||
+    currentFilters.minLength ||
+    currentFilters.maxLength ||
+    currentFilters.minWidth ||
+    currentFilters.maxWidth ||
+    currentFilters.minThickness ||
+    currentFilters.maxThickness ||
+    currentFilters.minVolume ||
+    currentFilters.maxVolume;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
@@ -187,6 +216,24 @@ export function FilterControls({
           </label>
         </div>
 
+        {/* Dimensions Toggle */}
+        <div className="flex items-end pb-1">
+          <button
+            onClick={() => setShowDimensions(!showDimensions)}
+            className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            {showDimensions ? "Hide" : "Show"} Dimensions
+            <svg
+              className={`h-4 w-4 transition-transform ${showDimensions ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
         {/* Clear Filters Button */}
         {hasActiveFilters && (
           <button
@@ -197,6 +244,125 @@ export function FilterControls({
           </button>
         )}
       </div>
+
+      {/* Dimension Filters (collapsible) */}
+      {showDimensions && (
+        <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-800">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Length Filter (total inches) */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Length (inches)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={currentFilters.minLength}
+                  onChange={(e) => updateFilter("minLength", e.target.value)}
+                  min="0"
+                  step="1"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                />
+                <span className="text-gray-500 dark:text-gray-400">-</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={currentFilters.maxLength}
+                  onChange={(e) => updateFilter("maxLength", e.target.value)}
+                  min="0"
+                  step="1"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* Width Filter */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Width (inches)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={currentFilters.minWidth}
+                  onChange={(e) => updateFilter("minWidth", e.target.value)}
+                  min="0"
+                  step="0.25"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                />
+                <span className="text-gray-500 dark:text-gray-400">-</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={currentFilters.maxWidth}
+                  onChange={(e) => updateFilter("maxWidth", e.target.value)}
+                  min="0"
+                  step="0.25"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* Thickness Filter */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Thickness (inches)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={currentFilters.minThickness}
+                  onChange={(e) => updateFilter("minThickness", e.target.value)}
+                  min="0"
+                  step="0.125"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                />
+                <span className="text-gray-500 dark:text-gray-400">-</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={currentFilters.maxThickness}
+                  onChange={(e) => updateFilter("maxThickness", e.target.value)}
+                  min="0"
+                  step="0.125"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* Volume Filter */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Volume (liters)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={currentFilters.minVolume}
+                  onChange={(e) => updateFilter("minVolume", e.target.value)}
+                  min="0"
+                  step="0.5"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                />
+                <span className="text-gray-500 dark:text-gray-400">-</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={currentFilters.maxVolume}
+                  onChange={(e) => updateFilter("maxVolume", e.target.value)}
+                  min="0"
+                  step="0.5"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

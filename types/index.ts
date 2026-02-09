@@ -55,6 +55,11 @@ export interface Surfboard {
   images?: SanityImage[];
   dimensions?: string;
   volume?: string;
+  lengthFeet?: number;
+  lengthInches?: number;
+  widthInches?: number;
+  thicknessInches?: number;
+  volumeLiters?: number;
   shaper?: string;
   description?: string;
   sourceUrl?: string;

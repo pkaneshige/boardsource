@@ -4,6 +4,13 @@ export const surfboard = defineType({
   name: "surfboard",
   title: "Surfboard",
   type: "document",
+  fieldsets: [
+    {
+      name: "parsedDimensions",
+      title: "Parsed Dimensions",
+      options: { collapsible: true, collapsed: true },
+    },
+  ],
   fields: [
     defineField({
       name: "name",
@@ -124,6 +131,41 @@ export const surfboard = defineType({
         layout: "radio",
       },
       initialValue: "unknown",
+    }),
+    defineField({
+      name: "lengthFeet",
+      title: "Length (Feet)",
+      type: "number",
+      description: "Parsed board length - feet component",
+      fieldset: "parsedDimensions",
+    }),
+    defineField({
+      name: "lengthInches",
+      title: "Length (Inches)",
+      type: "number",
+      description: "Parsed board length - inches component",
+      fieldset: "parsedDimensions",
+    }),
+    defineField({
+      name: "widthInches",
+      title: "Width (Inches)",
+      type: "number",
+      description: "Parsed board width in inches",
+      fieldset: "parsedDimensions",
+    }),
+    defineField({
+      name: "thicknessInches",
+      title: "Thickness (Inches)",
+      type: "number",
+      description: "Parsed board thickness in inches",
+      fieldset: "parsedDimensions",
+    }),
+    defineField({
+      name: "volumeLiters",
+      title: "Volume (Liters)",
+      type: "number",
+      description: "Parsed board volume in liters",
+      fieldset: "parsedDimensions",
     }),
     defineField({
       name: "relatedListings",
