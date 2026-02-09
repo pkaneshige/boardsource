@@ -1,0 +1,178 @@
+{
+  "project": "BoardSource Surfboard Catalog",
+  "branchName": "ralph/duplicate-detection-improvement",
+  "description": "Improve duplicate detection to accurately match surfboards listed at multiple stores. Uses structured comparison (brand + model + dimensions) instead of raw string similarity to achieve 80%+ detection accuracy.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Analyze current duplicate detection gaps",
+      "description": "As a developer, I need to understand why the current system finds 0 matches.",
+      "acceptanceCriteria": [
+        "Create script at scripts/analyze-duplicates.ts to query all products from Sanity",
+        "Log sample product names from each source (Hawaiian South Shore, Surf Garage)",
+        "Identify and document naming pattern differences (dimension format, brand placement, color descriptions)",
+        "Create at least 5 test cases of known duplicate boards in lib/scraper/__tests__/duplicate-test-cases.ts",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Analyzing duplicate detection gaps"
+    },
+    {
+      "id": "US-002",
+      "title": "Implement dimension normalization",
+      "description": "As a developer, I need to normalize board dimensions for comparison.",
+      "acceptanceCriteria": [
+        "Create normalizeDimensions() function in lib/scraper/duplicate-detector.ts",
+        "Handle formats: \"5'8\", \"5'8\\\"\", \"5ft 8in\", \"5-8\", \"5'8 x 19.5 x 2.5\"",
+        "Extract length and convert to total inches as number (e.g., 5'8\" = 68)",
+        "Return null if no valid dimension found",
+        "Add unit tests in lib/scraper/__tests__/duplicate-detector.test.ts",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Implementing dimension normalization"
+    },
+    {
+      "id": "US-003",
+      "title": "Implement brand/shaper extraction",
+      "description": "As a developer, I need to reliably extract brand names regardless of position in title.",
+      "acceptanceCriteria": [
+        "Create extractBrand() function in lib/scraper/duplicate-detector.ts",
+        "Create KNOWN_BRANDS array with: Firewire, Chris Christenson, Channel Islands, Pyzel, JS, Lost, DHD, Haydenshapes, Album, Torq, Bing, Donald Takayama, Hawaiian Pro Designs",
+        "Handle brand at start, middle, or end of product name",
+        "Return normalized brand name (lowercase, trimmed) or null if not found",
+        "Add unit tests covering various brand positions",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Implementing brand extraction"
+    },
+    {
+      "id": "US-004",
+      "title": "Implement model name extraction",
+      "description": "As a developer, I need to extract the model name from product titles.",
+      "acceptanceCriteria": [
+        "Create extractModel() function in lib/scraper/duplicate-detector.ts",
+        "Remove brand name, dimensions, and color/finish descriptions from title",
+        "Handle common model names: Seaside, Machado, Fish, Acid Phish, Lane Splitter, Special-T, etc.",
+        "Normalize spacing, punctuation, and case",
+        "Add unit tests with various product name formats",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Implementing model extraction"
+    },
+    {
+      "id": "US-005",
+      "title": "Create structured product comparison",
+      "description": "As a developer, I need to compare products using structured data, not just string similarity.",
+      "acceptanceCriteria": [
+        "Create ProductSignature type with: brand (string | null), model (string), lengthInches (number | null), source (string)",
+        "Create extractProductSignature() function that returns ProductSignature from product name",
+        "Create compareSignatures() function that returns match score 0-1",
+        "Matching rules: brand must match (if both have brand), model similarity > 0.8, length within ±1 inch",
+        "Add unit tests for signature extraction and comparison",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Creating structured product comparison"
+    },
+    {
+      "id": "US-006",
+      "title": "Update findDuplicates to use structured comparison",
+      "description": "As a developer, I need to replace the current string-only matching with structured comparison.",
+      "acceptanceCriteria": [
+        "Update findDuplicates() function to use extractProductSignature() and compareSignatures()",
+        "Keep crossSourceOnly option (only match products from different sources)",
+        "Return matches with confidence score based on how many fields matched",
+        "Log detailed match info: brand match, model similarity, length difference",
+        "Add integration tests with real product name examples",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Updating findDuplicates function"
+    },
+    {
+      "id": "US-007",
+      "title": "Implement configurable matching rules",
+      "description": "As a developer, I need to tune matching behavior without code changes.",
+      "acceptanceCriteria": [
+        "Create DuplicateMatcherConfig type with: lengthToleranceInches, requireBrandMatch, modelSimilarityThreshold, minConfidenceToAutoLink",
+        "Create DEFAULT_MATCHER_CONFIG with sensible defaults (1 inch tolerance, 0.8 model similarity, 0.7 confidence)",
+        "Update findDuplicates() to accept optional config parameter",
+        "Document configuration options in code comments",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Implementing configurable matching"
+    },
+    {
+      "id": "US-008",
+      "title": "Create duplicate detection script",
+      "description": "As a developer, I need to run improved detection on all existing products.",
+      "acceptanceCriteria": [
+        "Create scripts/run-duplicate-detection.ts",
+        "Fetch all in-stock surfboards from Sanity",
+        "Run findDuplicates with new structured comparison",
+        "Log matches found with confidence scores and match details",
+        "Update relatedListings for matched products using linkRelatedListings()",
+        "Report summary: total products, matches found, links created",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Creating duplicate detection script"
+    },
+    {
+      "id": "US-009",
+      "title": "Add manual duplicate linking API",
+      "description": "As a developer, I need API endpoints for manual duplicate management.",
+      "acceptanceCriteria": [
+        "Create app/api/duplicates/link/route.ts with POST handler",
+        "Accept: productId1, productId2 in request body",
+        "Validate both products exist and are from different sources",
+        "Call linkRelatedListings() to link bidirectionally",
+        "Return success response with updated product IDs",
+        "Protect with x-api-key authentication",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Adding manual linking API"
+    },
+    {
+      "id": "US-010",
+      "title": "Add manual duplicate unlinking API",
+      "description": "As a developer, I need to remove incorrect duplicate links.",
+      "acceptanceCriteria": [
+        "Create app/api/duplicates/unlink/route.ts with POST handler",
+        "Accept: productId1, productId2 in request body",
+        "Remove productId2 from productId1's relatedListings and vice versa",
+        "Create unlinkRelatedListings() function in lib/cms/write-client.ts",
+        "Return success response",
+        "Protect with x-api-key authentication",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "",
+      "activeForm": "Adding manual unlinking API"
+    }
+  ]
+}
